@@ -1,0 +1,34 @@
+.DS_Store
+.idea
+.cache
+.lsp-session-v1
+.recentf
+ac-comphist.dat
+auto-save-list/
+company-statistics-cache.el
+el-get/
+eln-cache/
+elpa
+elpa/
+elpy
+eshell
+ido.last
+snippets
+straight/
+tramp
+transient
+# Compiled
+*.elc
+projectile*
+# Packaging
+.cask
+url/
+# Backup files
+*~
+var/
+
+# Undo-tree save-files
+*.~undo-tree
+
+# local llm through ollama/ellama:
+ellama-sessions/
