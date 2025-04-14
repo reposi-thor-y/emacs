@@ -17,12 +17,15 @@ snippets
 straight/
 tramp
 transient
+
 # Compiled
 *.elc
 projectile*
+
 # Packaging
 .cask
 url/
+
 # Backup files
 *~
 var/
@@ -32,3 +35,6 @@ var/
 
 # local llm through ollama/ellama:
 ellama-sessions/
+
+# don't push history
+history
