@@ -10,16 +10,6 @@
 ;; 1. STARTUP OPTIMIZATIONS
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; Measure startup time
-(add-hook 'emacs-startup-hook
-          (lambda ()
-            (message "Emacs loaded in %s seconds with %d garbage collections."
-                     (emacs-init-time)
-                     gcs-done)))
-
-;; Increase garbage collection threshold for faster startup
-(setq gc-cons-threshold (* 100 1000 1000))  ;; 100MB instead of 50MB for even better startup
-
 ;; Set repositories to use
 (setq package-archives '(("elpa" . "https://elpa.gnu.org/packages/")
                          ("melpa" . "https://melpa.org/packages/")))
@@ -73,7 +63,7 @@
            (native-comp-available-p))
   (setq native-comp-async-report-warnings-errors nil)
   (setq native-comp-deferred-compilation t)
-  (setq native-comp-async-jobs-number 4) ; Adjust based on your CPU
+  (setq native-comp-async-jobs-number 12)
   
   ;; Set up a dedicated native compilation cache directory
   (when (boundp 'comp-eln-load-path)
@@ -91,9 +81,11 @@
 (prefer-coding-system 'utf-8-unix)
 (set-default-coding-systems 'utf-8)
 
-;; Line numbers
-(setq display-line-numbers-width-start t)
-(global-display-line-numbers-mode 1)
+;; Line numbers:
+;; set a fixed width for line numbers:
+(setq-default display-line-numbers-width-start t)
+;; 
+(global-display-line-numbers-mode t)
 
 ;; Backup and autosave
 (setq make-backup-files nil
@@ -116,7 +108,7 @@
 (defun open-init-file ()
   "Open this very file."
   (interactive)
-  (find-file "~/.emacs.d/init.el"))
+  (find-file "~/.emacs.d/config.el"))
 (bind-key "C-c e" #'open-init-file)
 
 ;; Enhanced comment/uncomment function with multi-language support
@@ -296,6 +288,38 @@ Also handles various cleanup tasks like removing trailing whitespace."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; 4. UI & APPEARANCE
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+;; Enable current line highlighting
+(global-hl-line-mode 1)
+
+;; Require the color library
+(require 'color)
+
+;; Define a function to set highlight color based on theme
+(defun my/set-hl-line-color ()
+  "Set the hl-line face based on whether we're using a light or dark theme."
+  (interactive)
+  (when (display-graphic-p)
+    (let* ((bg (frame-parameter nil 'background-color))
+           (is-light (> (color-distance bg "white") 
+                        (color-distance bg "black"))))
+      (if is-light
+          ;; For dark themes - darker highlight
+          (set-face-attribute 'hl-line nil :background "#3a3a3a" :extend t)
+        ;; For light themes - lighter highlight
+        (set-face-attribute 'hl-line nil :background "#e0e0e0" :extend t)))))
+
+;; Call it once at startup
+(with-eval-after-load 'color
+  (my/set-hl-line-color))
+
+;; Make sure highlighting doesn't override selection
+(set-face-attribute 'hl-line nil :inherit nil)
+
+;; Add hook to update when theme changes
+(add-hook 'after-load-theme-hook 'my/set-hl-line-color)
+
 
 ;; Install mana theme collection
 (use-package ef-themes
@@ -1273,7 +1297,7 @@ or 'LaTeX-indent-level-item-continuation' if the latter is bound."
  view-read-only t)                                    ; Always open read-only buffers in view-mode
 
 ;; Final UI tweaks
-(global-hl-line-mode)                                 ; Highlight current line
+;; (global-hl-line-mode 1)                                 ; Highlight current line
 (show-paren-mode 1)                                   ; Show matching parenthesis
 (fset 'yes-or-no-p 'y-or-n-p)                         ; Replace yes/no prompts with y/n
 
@@ -1281,13 +1305,10 @@ or 'LaTeX-indent-level-item-continuation' if the latter is bound."
 ;; 10. FINALIZATION
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; Garbage collection threshold for normal use
-(setq gc-cons-threshold (* 2 1000 1000))
-
 ;; Custom file location
 (setq custom-file (expand-file-name "custom.el" user-emacs-directory))
 (when (file-exists-p custom-file)
   (load custom-file))
 
-(provide 'init)
-;;; init.el ends here
+(provide 'config)
+;;; config.el ends here
