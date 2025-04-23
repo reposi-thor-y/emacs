@@ -1,4 +1,4 @@
-;;; init.el --- Optimized Emacs Configuration
+;;; config.el --- Optimized Emacs Configuration
 
 ;;; Commentary:
 ;; Optimized Emacs configuration by Johan Thor
@@ -84,8 +84,14 @@
 ;; Line numbers:
 ;; set a fixed width for line numbers:
 (setq-default display-line-numbers-width-start t)
+
 ;; 
 (global-display-line-numbers-mode t)
+
+;; center buffer:
+(use-package centered-cursor-mode
+  :ensure t
+  :bind ("C-c l" . centered-cursor-mode))
 
 ;; Backup and autosave
 (setq make-backup-files nil
@@ -814,7 +820,7 @@ Also handles various cleanup tasks like removing trailing whitespace."
          (latex-mode . lsp-deferred)
          (markdown-mode . lsp-deferred))
   :init
-  (setq lsp-keymap-prefix "C-c l")
+  ;; (setq lsp-keymap-prefix "C-c l")
   :config
   ;; Performance optimizations
   (setq lsp-enable-file-watchers nil)
