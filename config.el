@@ -811,9 +811,22 @@ Also handles various cleanup tasks like removing trailing whitespace."
 (use-package hydra
   :ensure t)
 
+(use-package hydra
+  :ensure t)
+
 (use-package smerge-mode
   :after hydra
   :config
+  ;; Define the custom function first
+  (defun smerge-keep-all-upstream ()
+    "Keep all upstream (lower) changes in the current buffer."
+    (interactive)
+    (save-excursion
+      (goto-char (point-min))
+      (while (re-search-forward "^<<<<<<< " nil t)
+        (smerge-keep-lower))))
+  
+  ;; Then create the hydra with a reference to the function
   (defhydra smerge-hydra
     (:color red :hint nil :post (smerge-auto-leave))
     "
@@ -822,7 +835,7 @@ Also handles various cleanup tasks like removing trailing whitespace."
 _n_ext       _b_ase               _<_: base-upper        _C_ombine
 _p_rev       _u_pper              _=_: upper-lower       _r_esolve
 ^^           _l_ower              _>_: base-lower        _k_ill current
-^^           _a_ll                _R_efine
+^^           _a_ll                _R_efine               _A_ll upstream
 ^^           _RET_: current       _E_diff
 "
     ("n" smerge-next)
@@ -831,6 +844,7 @@ _p_rev       _u_pper              _=_: upper-lower       _r_esolve
     ("u" smerge-keep-upper)
     ("l" smerge-keep-lower)
     ("a" smerge-keep-all)
+    ("A" smerge-keep-all-upstream)
     ("RET" smerge-keep-current)
     ("\C-m" smerge-keep-current)
     ("<" smerge-diff-base-upper)
@@ -843,17 +857,14 @@ _p_rev       _u_pper              _=_: upper-lower       _r_esolve
     ("k" smerge-kill-current)
     ("q" nil "cancel" :color blue))
   
-  ;; Automatically activate smerge-mode when opening files with conflicts
   :hook (find-file . (lambda ()
                        (save-excursion
                          (goto-char (point-min))
                          (when (re-search-forward "^<<<<<<< " nil t)
                            (smerge-mode 1)))))
   
-  ;; Bind the hydra to a convenient key in smerge-mode
   :bind (:map smerge-mode-map
               ("C-c h" . smerge-hydra/body)))
-
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -970,10 +981,22 @@ _p_rev       _u_pper              _=_: upper-lower       _r_esolve
 ;; 8.2 C++
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; Define Google C++ style
-(c-add-style "google"
+;; ===== C++ Configuration with LSP Support =====
+
+;; --- Package setup ---
+;; Make sure use-package is installed
+(require 'use-package)
+(setq use-package-always-ensure t)
+
+;; --- Basic C++ settings with consistent 4-space indentation ---
+(setq-default c-basic-offset 4)
+(setq-default tab-width 4)
+(setq-default indent-tabs-mode nil)  ; Use spaces, not tabs
+
+;; Custom C++ style based on a modified version of "stroustrup" style
+(c-add-style "cpp-custom"
              '("stroustrup"
-               (c-basic-offset . 2)
+               (c-basic-offset . 4)
                (c-offsets-alist
                 (access-label . -)
                 (arglist-cont-nonempty . +)
@@ -983,6 +1006,7 @@ _p_rev       _u_pper              _=_: upper-lower       _r_esolve
                 (inclass . +)
                 (inher-cont . c-lineup-multi-inher)
                 (inline-open . 0)
+                (innamespace . 0)      ; No extra indentation in namespaces
                 (label . /)
                 (member-init-intro . +)
                 (namespaces . 0)
@@ -990,31 +1014,87 @@ _p_rev       _u_pper              _=_: upper-lower       _r_esolve
                 (substatement-open . 0)
                 (template-args-cont . +))))
 
-;; Clang formatting
+;; Apply our custom style to C++ files
+(add-hook 'c++-mode-hook
+          (lambda ()
+            (c-set-style "cpp-custom")
+            ;; Only enable auto-newline and hungry-delete for smaller files
+            (when (< (buffer-size) 1000000)
+              (c-toggle-auto-newline 1)
+              (c-toggle-hungry-state 1))))
+
+;; --- Performance optimizations for large files ---
+(use-package so-long
+  :config
+  (global-so-long-mode 1))
+
+(defun my/setup-cpp-for-large-files ()
+  "Optimize settings for large C++ files."
+  (when (> (buffer-size) 1000000) ; For files larger than ~1MB
+    (setq-local font-lock-maximum-decoration 2)
+    (font-lock-mode -1)
+    (font-lock-mode 1)
+    (setq-local font-lock-support-mode nil)
+    (c-toggle-auto-newline -1)
+    (c-toggle-hungry-state -1)
+    (when (fboundp 'eglot-managed-p)
+      (add-hook 'after-save-hook #'eglot-ensure nil t))))
+
+(add-hook 'c++-mode-hook 'my/setup-cpp-for-large-files)
+
+;; --- Modern C++ font lock ---
+(use-package modern-cpp-font-lock
+  :hook (c++-mode . modern-c++-font-lock-mode))
+
+;; --- Clang Format ---
 (use-package clang-format
-  :defer t
   :bind (("C-c f" . clang-format-buffer)
          ("C-c r f" . clang-format-region)))
 
-;; Modern C++ syntax highlighting
-(use-package modern-cpp-font-lock
-  :defer t
-  :hook (c++-mode . modern-c++-font-lock-mode))
+;; --- LSP Setup with Eglot (built into Emacs 29+) ---
+;; For older Emacs versions, uncomment:
+;; (use-package eglot)
 
-;; Basic C++ mode settings
-(setq-default c-basic-offset 4)
-(setq-default tab-width 4)
+;; Configure Eglot for C++ with clangd
+(use-package eglot
+  :ensure nil  ; Built into Emacs 29+
+  :hook ((c-mode c++-mode) . eglot-ensure)
+  :config
+  (add-to-list 'eglot-server-programs
+               '((c++-mode c-mode) . ("clangd" "--header-insertion=never"
+                                      "--completion-style=detailed"
+                                      "--background-index"
+                                      "--clang-tidy"
+                                      "--suggest-missing-includes"))))
+
+;; --- Optional: Company for code completion ---
+(use-package company
+  :hook (after-init . global-company-mode)
+  :config
+  (setq company-minimum-prefix-length 1
+        company-idle-delay 0.1))
+
+;; --- Project management ---
+(use-package projectile
+  :config
+  (projectile-mode +1)
+  :bind-keymap
+  ("C-c p" . projectile-command-map))
+
+;; --- Compilation settings ---
 (setq compile-command "cmake -B build -G Ninja && cmake --build build")
-
-(add-hook 'c++-mode-hook
-          (lambda ()
-            (c-set-style "google")
-            (c-set-offset 'innamespace 0)
-            (c-toggle-auto-newline 1)
-            (c-toggle-hungry-state 1)
-            (c-set-offset 'substatement-open 0)))
-
 (global-set-key (kbd "C-c C-c") 'compile)
+
+;; --- Optional: Flycheck for on-the-fly syntax checking ---
+(use-package flycheck
+  :hook (c++-mode . flycheck-mode))
+
+;; Make sure PATH is set correctly to find clangd and other tools
+(when (memq window-system '(mac ns))
+  (use-package exec-path-from-shell
+    :config
+    (exec-path-from-shell-initialize)))
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; 8.3 LATEX
