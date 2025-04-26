@@ -117,6 +117,8 @@
   (find-file "~/.emacs.d/config.el"))
 (bind-key "C-c e" #'open-init-file)
 
+
+
 ;; Enhanced comment/uncomment function with multi-language support
 (defun comment-or-uncomment-line-or-region ()
   "Comments or uncomments the current line or region intelligently.
@@ -124,10 +126,14 @@ Handles different languages including C++, Python, JSON, and shell scripts.
 For regions in C-like languages, uses block comments when appropriate."
   (interactive)
   (let* ((start (if (region-active-p)
-                    (region-beginning)
+                    (save-excursion
+                      (goto-char (region-beginning))
+                      (line-beginning-position))
                   (line-beginning-position)))
          (end (if (region-active-p)
-                  (region-end)
+                  (save-excursion
+                    (goto-char (region-end))
+                    (line-end-position))
                 (line-end-position)))
          (use-block-comments (and (region-active-p)
                                  (> (count-lines start end) 1)
@@ -178,8 +184,8 @@ For regions in C-like languages, uses block comments when appropriate."
      
      ;; Default for all other cases - use the built-in function
      (t (comment-or-uncomment-region start end)))))
-
 (global-set-key (kbd "M-1") 'comment-or-uncomment-line-or-region)
+
 
 ;; Smart buffer indentation
 (defun indent-buffer-smart ()
@@ -268,9 +274,9 @@ Also handles various cleanup tasks like removing trailing whitespace."
      ((eq system-type 'gnu/linux)
       (cond
        ((string-equal (system-name) "rocky-ws")
-        (set-frame-size (selected-frame) 120 70)
-        (set-frame-position (selected-frame) 850 0)
-        (set-face-attribute 'default nil :font "SauceCodePro NFM" :height 160))
+        (set-frame-size (selected-frame) 120 80)
+        (set-frame-position (selected-frame) 400 0)
+        (set-face-attribute 'default nil :font "SauceCodePro NFM" :height 140))
        ((string-equal (system-name) "macbook13-linux")
         (add-to-list 'default-frame-alist '(fullscreen . maximized))
         (set-face-attribute 'default nil :font "SauceCodePro NFM" :height 200))
@@ -793,23 +799,6 @@ Also handles various cleanup tasks like removing trailing whitespace."
   (setq dired-sidebar-use-term-integration t)
   (setq dired-sidebar-use-custom-font t))
 
-;; Terminal emulation
-(use-package vterm
-  :defer t
-  :config
-  (setq vterm-max-scrollback 10000)
-  (setq vterm-keymap-exceptions '("C-x" "C-u" "C-g" "C-h" "C-l" "M-x" "M-o" "C-v" "M-v" "C-y" "M-y"
-                                  "M-i" "M-j" "M-k" "M-l"))
-  :bind (:map vterm-mode-map
-              ("M-i" . windmove-up)
-              ("M-j" . windmove-left)
-              ("M-k" . windmove-down)
-              ("M-l" . windmove-right))
-  :bind (("C-c t" . vterm)))
-
-
-(use-package hydra
-  :ensure t)
 
 (use-package hydra
   :ensure t)
@@ -878,7 +867,8 @@ _p_rev       _u_pper              _=_: upper-lower       _r_esolve
   :hook ((python-mode . lsp-deferred)
          (c++-mode . lsp-deferred)
          (latex-mode . lsp-deferred)
-         (markdown-mode . lsp-deferred))
+         (markdown-mode . lsp-deferred)
+         (sh-mode . lsp-deferred))   ;; Added hook for shell script mode
   :init
   ;; (setq lsp-keymap-prefix "C-c l")
   :config
@@ -904,7 +894,24 @@ _p_rev       _u_pper              _=_: upper-lower       _r_esolve
   ;; Language-specific settings
   (lsp-register-custom-settings
    '(("pyls.plugins.pycodestyle.enabled" t t)
-     ("pyls.plugins.pycodestyle.maxLineLength" 88 t))))
+     ("pyls.plugins.pycodestyle.maxLineLength" 88 t)))
+  
+  ;; Shell script LSP configuration using bash-language-server
+  (with-eval-after-load 'lsp-mode
+    (lsp-register-client
+     (make-lsp-client :new-connection (lsp-stdio-connection '("bash-language-server" "start"))
+                     :major-modes '(sh-mode)
+                     :priority -1
+                     :server-id 'bash-ls))
+    
+    ;; Shell-specific LSP settings
+    (setq lsp-bash-highlight-parsing-errors t))
+  
+  ;; Associate zsh files with sh-mode to get LSP support
+  (add-to-list 'auto-mode-alist '("\\.zsh\\'" . sh-mode))
+  (add-to-list 'auto-mode-alist '("zshrc\\'" . sh-mode))
+  (add-to-list 'auto-mode-alist '("\\.zshenv\\'" . sh-mode))
+  (add-to-list 'auto-mode-alist '("\\.zprofile\\'" . sh-mode)))
 
 ;; LSP UI enhancements
 (use-package lsp-ui
@@ -919,6 +926,67 @@ _p_rev       _u_pper              _=_: upper-lower       _r_esolve
 (use-package lsp-treemacs
   :defer t
   :commands lsp-treemacs-errors-list)
+
+;; Ensure ShellCheck is available for enhanced diagnostics
+(use-package flycheck
+  :defer t
+  :hook (sh-mode . flycheck-mode)
+  :config
+  (setq flycheck-shellcheck-follow-sources t))
+
+
+
+
+
+
+;; ;; LSP (Language Server Protocol) Mode
+;; (use-package lsp-mode
+;;   :defer t
+;;   :commands (lsp lsp-deferred)
+;;   :hook ((python-mode . lsp-deferred)
+;;          (c++-mode . lsp-deferred)
+;;          (latex-mode . lsp-deferred)
+;;          (markdown-mode . lsp-deferred))
+;;   :init
+;;   ;; (setq lsp-keymap-prefix "C-c l")
+;;   :config
+;;   ;; Performance optimizations
+;;   (setq lsp-enable-file-watchers nil)
+;;   (setq lsp-idle-delay 0.500)
+;;   (setq lsp-log-io nil)
+;;   (setq lsp-completion-provider :capf)
+;;   (setq lsp-prefer-flymake nil)
+;;   (setq read-process-output-max (* 1024 1024))
+  
+;;   ;; Features
+;;   (setq lsp-enable-symbol-highlighting t)
+;;   (setq lsp-enable-indentation nil)
+;;   (setq lsp-enable-on-type-formatting nil)
+;;   (setq lsp-signature-auto-activate nil)
+;;   (setq lsp-signature-render-documentation nil)
+;;   (setq lsp-eldoc-hook nil)
+;;   (setq lsp-modeline-code-actions-enable nil)
+;;   (setq lsp-modeline-diagnostics-enable nil)
+;;   (setq lsp-headerline-breadcrumb-enable nil)
+  
+;;   ;; Language-specific settings
+;;   (lsp-register-custom-settings
+;;    '(("pyls.plugins.pycodestyle.enabled" t t)
+;;      ("pyls.plugins.pycodestyle.maxLineLength" 88 t))))
+
+;; ;; LSP UI enhancements
+;; (use-package lsp-ui
+;;   :defer t
+;;   :after lsp-mode
+;;   :commands lsp-ui-mode
+;;   :config
+;;   (setq lsp-ui-doc-enable nil
+;;         lsp-ui-sideline-enable nil))
+
+;; ;; Tree view for LSP
+;; (use-package lsp-treemacs
+;;   :defer t
+;;   :commands lsp-treemacs-errors-list)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; 8.1 PYTHON
@@ -1215,7 +1283,7 @@ or 'LaTeX-indent-level-item-continuation' if the latter is bound."
   :hook ((LaTeX-mode . lsp)
          (lsp-mode . lsp-enable-which-key-integration))
   :config
-  (setq lsp-latex-texlab-executable "/usr/bin/texlab"
+  (setq lsp-latex-texlab-executable "/home/linuxbrew/.linuxbrew/bin/texlab"
         lsp-latex-build-on-save t))
 
 ;; Preview equations inline
@@ -1223,7 +1291,7 @@ or 'LaTeX-indent-level-item-continuation' if the latter is bound."
   :defer t
   :after tex
   :custom
-  (math-preview-command "/usr/local/bin/math-preview"))
+  (math-preview-command "/usr/local/sbin/math-preview"))
 
 ;; Keybinding for error navigation (Swedish keyboard friendly)
 (with-eval-after-load 'tex
@@ -1309,11 +1377,236 @@ or 'LaTeX-indent-level-item-continuation' if the latter is bound."
          ("C->" . mc/mark-next-like-this)
          ("C-<" . mc/mark-previous-like-this)))
 
-;; Shell script mode
+;; ;; Shell script mode
+;; (use-package sh-script
+;;   :defer t
+;;   :delight "δ"
+;;   :hook (after-save . executable-make-buffer-file-executable-if-script-p))
+
+
+;; Enhanced shell script configuration for Emacs
+;; With focus on zsh integration
+
+;; Base shell mode configuration
 (use-package sh-script
   :defer t
   :delight "δ"
-  :hook (after-save . executable-make-buffer-file-executable-if-script-p))
+  :hook (after-save . executable-make-buffer-file-executable-if-script-p)
+  :config
+  ;; Set zsh as the default shell for script mode
+  (setq sh-shell-file "/bin/zsh")
+  
+  ;; Custom indentation for zsh scripts
+  (setq sh-basic-offset 2
+        sh-indentation 2)
+  
+  ;; Set zsh as default for new shell scripts
+  (add-to-list 'auto-mode-alist '("\\.zsh\\'" . sh-mode))
+  (add-to-list 'auto-mode-alist '("zshrc\\'" . sh-mode))
+  (add-to-list 'auto-mode-alist '("\\.zshenv\\'" . sh-mode))
+  (add-to-list 'auto-mode-alist '("\\.zprofile\\'" . sh-mode))
+  
+  ;; Custom syntax highlighting for common zsh commands and constructs
+  (font-lock-add-keywords
+   'sh-mode
+   '(("\\<\\(typeset\\|autoload\\|zmodload\\|zstyle\\|compdef\\)\\>" 
+      . font-lock-keyword-face)
+     ("\\<\\(setopt\\|unsetopt\\)\\>" 
+      . font-lock-builtin-face))))
+
+;; Shell execution environment
+(use-package exec-path-from-shell
+  :ensure t
+  :init
+  (when (memq window-system '(mac ns x))
+    (exec-path-from-shell-initialize))
+  ;; Copy important shell environment variables
+  (exec-path-from-shell-copy-envs '("PATH" "MANPATH" "LANG" "LC_ALL")))
+
+;; Terminal emulation with better zsh support
+(use-package vterm
+  :defer t
+  :bind (("C-c t" . vterm))
+  :config
+  ;; Better zsh integration
+  (setq vterm-shell "/bin/zsh")
+  (setq vterm-max-scrollback 10000)
+  (setq vterm-keymap-exceptions '("C-x" "C-u" "C-g" "C-h" "C-l" "M-x" "M-o" "C-v" "M-v" "C-y" "M-y"
+                                  "M-i" "M-j" "M-k" "M-l"))
+  :bind (:map vterm-mode-map
+              ("M-i" . windmove-up)
+              ("M-j" . windmove-left)
+              ("M-k" . windmove-down)
+              ("M-l" . windmove-right)))
+
+
+;; Shell command completion (specialized for zsh)
+(use-package company-shell
+  :ensure t
+  :config
+  (add-to-list 'company-backends 'company-shell)
+  (add-to-list 'company-backends 'company-shell-env))
+
+;; ;; Zsh script templates
+;; (use-package yasnippet
+;;   :ensure t
+;;   :config
+;;   (yas-global-mode 1)
+;;   ;; Function to create custom zsh snippets directory if needed
+;;   (defun ensure-zsh-snippets-dir ()
+;;     (let ((zsh-snip-dir (expand-file-name "snippets/sh-mode" user-emacs-directory)))
+;;       (unless (file-exists-p zsh-snip-dir)
+;;         (make-directory zsh-snip-dir t)))))
+
+;; ;; Define a function to create a zsh script template
+;; (defun create-zsh-script ()
+;;   "Create a new zsh script with best practices."
+;;   (interactive)
+;;   (let ((file-name (read-file-name "Create zsh script: " nil nil nil nil))
+;;         (template "#!/bin/zsh
+;; # -*- mode: sh -*-
+;; #
+;; # Description: Script description here
+;; # Created: %s
+;; # Author: $USER
+;; #
+;; set -e  # Exit on error
+;; set -u  # Treat unset variables as errors
+
+;; # --- Configuration ---
+;; SCRIPT_DIR=\"${0:A:h}\"
+;; SCRIPT_NAME=\"${0:t}\"
+;; LOG_FILE=\"${LOG_FILE:-/tmp/$SCRIPT_NAME-$(date +%%Y%%m%%d).log}\"
+
+;; # --- Functions ---
+;; log() {
+;;   local timestamp=$(date +\"%%Y-%%m-%%d %%H:%%M:%%S\")
+;;   echo \"[$timestamp] $1\" | tee -a \"$LOG_FILE\"
+;; }
+
+;; usage() {
+;;   cat << EOF
+;; Usage: $SCRIPT_NAME [options]
+
+;; Options:
+;;   -h, --help     Show this help message and exit
+;;   -v, --verbose  Enable verbose output
+;; EOF
+;;   exit 1
+;; }
+
+;; # --- Parse Arguments ---
+;; verbose=0
+
+;; while [[ $# -gt 0 ]]; do
+;;   case \"$1\" in
+;;     -h|--help)
+;;       usage
+;;       ;;
+;;     -v|--verbose)
+;;       verbose=1
+;;       shift
+;;       ;;
+;;     *)
+;;       echo \"Unknown option: $1\"
+;;       usage
+;;       ;;
+;;   esac
+;; done
+
+;; # --- Main Execution ---
+;; [[ $verbose -eq 1 ]] && log \"Starting script execution\"
+
+;; # Your script logic here
+
+;; [[ $verbose -eq 1 ]] && log \"Script execution completed\"
+;; exit 0
+;; "))
+;;     (with-temp-file file-name
+;;       (insert (format template (format-time-string "%Y-%m-%d"))))
+;;     (set-file-modes file-name #o755)  ; Make executable
+;;     (find-file file-name)))
+
+;; Function to launch zsh and execute given command
+(defun run-zsh-command (command)
+  "Run a zsh command in a new buffer."
+  (interactive "sZsh command: ")
+  (let ((buffer (generate-new-buffer "*zsh-command*")))
+    (switch-to-buffer buffer)
+    (insert (format "Running: %s\n\n" command))
+    (start-process "zsh-command" buffer "zsh" "-c" command)
+    (shell-mode)))
+
+;; Key bindings for our zsh integration
+(global-set-key (kbd "C-c z c") 'run-zsh-command)
+(global-set-key (kbd "C-c z n") 'create-zsh-script)
+
+;; Improved directory navigation with zsh
+(defun zsh-find-file ()
+  "Use zsh's advanced globbing to find files."
+  (interactive)
+  (let* ((pattern (read-string "Zsh file pattern: "))
+         (command (format "find . -type f -name '%s' | sort" pattern))
+         (result (shell-command-to-string command))
+         (files (split-string result "\n" t))
+         (selected (completing-read "Select file: " files nil t)))
+    (when selected
+      (find-file selected))))
+
+(global-set-key (kbd "C-c z f") 'zsh-find-file)
+
+;; ;; Process CSV data with zsh and awk
+;; (defun zsh-process-csv ()
+;;   "Process current CSV file with zsh and awk."
+;;   (interactive)
+;;   (when (buffer-file-name)
+;;     (let* ((file (buffer-file-name))
+;;            (output-file (concat (file-name-sans-extension file) "-processed.csv"))
+;;            (column (read-string "Column to process (name or number): "))
+;;            (operation (completing-read "Operation: " 
+;;                                       '("sum" "average" "count" "unique" "sort")))
+;;            (command (cond
+;;                      ((string= operation "sum")
+;;                       (format "zsh -c \"awk -F, 'NR>1 {sum+=$%s} END {print \\\"Sum: \\\"sum}' %s\"" column file))
+;;                      ((string= operation "average")
+;;                       (format "zsh -c \"awk -F, 'NR>1 {sum+=$%s; count++} END {print \\\"Average: \\\"sum/count}' %s\"" column file))
+;;                      ((string= operation "count")
+;;                       (format "zsh -c \"awk -F, 'END {print \\\"Rows: \\\"NR-1}' %s\"" file))
+;;                      ((string= operation "unique")
+;;                       (format "zsh -c \"awk -F, 'NR>1 {count[$%s]++} END {for (val in count) print val, count[val]}' %s\"" column file))
+;;                      ((string= operation "sort")
+;;                       (format "zsh -c \"awk -F, 'NR==1; NR>1' %s | sort -t, -k%s > %s && echo \\\"Sorted file saved to %s\\\"\"" 
+;;                               file column output-file output-file)))))
+;;       (with-output-to-temp-buffer "*CSV Processing*"
+;;         (princ (format "Processing %s...\n\n" file))
+;;         (princ (shell-command-to-string command))))))
+
+;; (global-set-key (kbd "C-c z d") 'zsh-process-csv)
+
+;; Add zsh-mode custom keybindings
+(defvar zsh-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "C-c C-e") 'run-zsh-command)
+    (define-key map (kbd "C-c C-c") 'zsh-process-csv)
+    map)
+  "Keymap for zsh-mode.")
+
+(define-derived-mode zsh-mode sh-mode "ZSH"
+  "Major mode for editing zsh scripts."
+  :group 'sh
+  (sh-set-shell "zsh"))
+
+(provide 'zsh-mode)
+
+;; Register zsh-mode for .zsh files
+(add-to-list 'auto-mode-alist '("\\.zsh\\'" . zsh-mode))
+(add-to-list 'interpreter-mode-alist '("zsh" . zsh-mode))
+
+
+
+
+
+
 
 ;; CSV mode
 (use-package csv-mode
