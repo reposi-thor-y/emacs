@@ -64,7 +64,7 @@
   (setq native-comp-async-report-warnings-errors nil)
   (setq native-comp-deferred-compilation t)
   (setq native-comp-async-jobs-number 12)
-  
+
   ;; Set up a dedicated native compilation cache directory
   (when (boundp 'comp-eln-load-path)
     (let ((eln-cache-dir (expand-file-name "eln-cache/" user-emacs-directory)))
@@ -85,7 +85,7 @@
 ;; set a fixed width for line numbers:
 (setq-default display-line-numbers-width-start t)
 
-;; 
+;;
 (global-display-line-numbers-mode t)
 
 ;; center buffer:
@@ -136,11 +136,11 @@ For regions in C-like languages, uses block comments when appropriate."
                     (line-end-position))
                 (line-end-position)))
          (use-block-comments (and (region-active-p)
-                                 (> (count-lines start end) 1)
-                                 (or (derived-mode-p 'c-mode)
-                                     (derived-mode-p 'c++-mode)
-                                     (derived-mode-p 'js-mode)
-                                     (derived-mode-p 'css-mode)))))
+                                  (> (count-lines start end) 1)
+                                  (or (derived-mode-p 'c-mode)
+                                      (derived-mode-p 'c++-mode)
+                                      (derived-mode-p 'js-mode)
+                                      (derived-mode-p 'css-mode)))))
     (cond
      ;; Block comment case for multi-line C-style languages
      (use-block-comments
@@ -164,7 +164,7 @@ For regions in C-like languages, uses block comments when appropriate."
             (insert "*/")
             (goto-char start)
             (insert "/*")))))
-     
+
      ;; JSON mode (which doesn't have a built-in comment functionality)
      ((derived-mode-p 'json-mode)
       (save-excursion
@@ -174,14 +174,14 @@ For regions in C-like languages, uses block comments when appropriate."
             (beginning-of-line)
             (if (looking-at "^[ \t]*//")
                 ;; Remove comment
-                (delete-region (match-beginning 0) (+ (match-end 0) 
-                                                     (if (looking-at "^[ \t]*// ") 1 0)))
+                (delete-region (match-beginning 0) (+ (match-end 0)
+                                                      (if (looking-at "^[ \t]*// ") 1 0)))
               ;; Add comment
               (insert "// "))
             (setq line-count (1+ line-count))
             (when (= line-count 100) (error "Safety limit reached"))
             (forward-line 1)))))
-     
+
      ;; Default for all other cases - use the built-in function
      (t (comment-or-uncomment-region start end)))))
 (global-set-key (kbd "M-1") 'comment-or-uncomment-line-or-region)
@@ -314,7 +314,7 @@ Also handles various cleanup tasks like removing trailing whitespace."
   (interactive)
   (when (display-graphic-p)
     (let* ((bg (frame-parameter nil 'background-color))
-           (is-light (> (color-distance bg "white") 
+           (is-light (> (color-distance bg "white")
                         (color-distance bg "black"))))
       (if is-light
           ;; For dark themes - darker highlight
@@ -348,9 +348,9 @@ Also handles various cleanup tasks like removing trailing whitespace."
  '(warning-suppress-types '((use-package))))
 
 ;; Mode line appearance
-(set-face-attribute 'mode-line nil :foreground "gray50" :background "black" 
+(set-face-attribute 'mode-line nil :foreground "gray50" :background "black"
                     :box '(:line-width 1 :color "gray50"))
-(set-face-attribute 'mode-line-inactive nil :foreground "white" :background "gray20" 
+(set-face-attribute 'mode-line-inactive nil :foreground "white" :background "gray20"
                     :box '(:line-width 1 :color "gray20"))
 
 ;; Window divider
@@ -386,7 +386,7 @@ Also handles various cleanup tasks like removing trailing whitespace."
 (use-package ultra-scroll
   :straight (ultra-scroll :type git :host github :repo "jdtsmith/ultra-scroll")
   :init
-  (setq scroll-conservatively 101 
+  (setq scroll-conservatively 101
         scroll-margin 0)
   :config
   (ultra-scroll-mode 1))
@@ -511,10 +511,10 @@ Also handles various cleanup tasks like removing trailing whitespace."
   :init
   (setq history-length 1000
         savehist-additional-variables '(mark-ring
-                                       global-mark-ring
-                                       search-ring
-                                       regexp-search-ring
-                                       extended-command-history))
+                                        global-mark-ring
+                                        search-ring
+                                        regexp-search-ring
+                                        extended-command-history))
   :config
   (savehist-mode 1))
 
@@ -570,7 +570,7 @@ Also handles various cleanup tasks like removing trailing whitespace."
     :after vertico
     :load-path "straight/build/vertico/extensions"
     :hook (rfn-eshadow-update-overlay . vertico-directory-tidy))
-  
+
   (setq vertico-count-format nil)
   :custom-face
   (vertico-current ((t (:background "#1d1f21")))))
@@ -703,13 +703,13 @@ Also handles various cleanup tasks like removing trailing whitespace."
             (setq found (seq-some (lambda (prefix)
                                     (string-prefix-p prefix quote-content))
                                   path-prefixes))))
-        
+
         ;; Or check if we're after a path prefix
         (unless found
           (let ((prefix-end pos)
                 (prefix-start (max (- pos 20) line-start)))
             (setq found (seq-some (lambda (prefix)
-                                    (string-match-p 
+                                    (string-match-p
                                      (concat (regexp-quote prefix) ".*\\'")
                                      (buffer-substring-no-properties prefix-start prefix-end)))
                                   path-prefixes))))
@@ -814,7 +814,7 @@ Also handles various cleanup tasks like removing trailing whitespace."
       (goto-char (point-min))
       (while (re-search-forward "^<<<<<<< " nil t)
         (smerge-keep-lower))))
-  
+
   ;; Then create the hydra with a reference to the function
   (defhydra smerge-hydra
     (:color red :hint nil :post (smerge-auto-leave))
@@ -845,13 +845,13 @@ _p_rev       _u_pper              _=_: upper-lower       _r_esolve
     ("r" smerge-resolve)
     ("k" smerge-kill-current)
     ("q" nil "cancel" :color blue))
-  
+
   :hook (find-file . (lambda ()
                        (save-excursion
                          (goto-char (point-min))
                          (when (re-search-forward "^<<<<<<< " nil t)
                            (smerge-mode 1)))))
-  
+
   :bind (:map smerge-mode-map
               ("C-c h" . smerge-hydra/body)))
 
@@ -861,6 +861,8 @@ _p_rev       _u_pper              _=_: upper-lower       _r_esolve
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; LSP (Language Server Protocol) Mode
+
+;; LSP (Language Server Protocol) Mode
 (use-package lsp-mode
   :defer t
   :commands (lsp lsp-deferred)
@@ -868,9 +870,18 @@ _p_rev       _u_pper              _=_: upper-lower       _r_esolve
          (c++-mode . lsp-deferred)
          (latex-mode . lsp-deferred)
          (markdown-mode . lsp-deferred)
-         (sh-mode . lsp-deferred))   ;; Added hook for shell script mode
+         (sh-mode . lsp-deferred))   ;; Hook for shell script mode
   :init
   ;; (setq lsp-keymap-prefix "C-c l")
+  ;; Register bash-language-server during initialization
+  ;; This ensures it's available immediately when sh-mode is loaded
+  (setq lsp-bash-highlight-parsing-errors t)
+  (setq lsp-bash-explainshellendpoint "https://explainshell.com/api/explain")
+  
+  ;; Make sure we know where to find bash-language-server
+  ;; This helps in case the executable isn't in your default PATH
+  (setq lsp-bash-cmd '("bash-language-server" "start"))
+  
   :config
   ;; Performance optimizations
   (setq lsp-enable-file-watchers nil)
@@ -897,21 +908,51 @@ _p_rev       _u_pper              _=_: upper-lower       _r_esolve
      ("pyls.plugins.pycodestyle.maxLineLength" 88 t)))
   
   ;; Shell script LSP configuration using bash-language-server
-  (with-eval-after-load 'lsp-mode
-    (lsp-register-client
-     (make-lsp-client :new-connection (lsp-stdio-connection '("bash-language-server" "start"))
-                     :major-modes '(sh-mode)
-                     :priority -1
-                     :server-id 'bash-ls))
-    
-    ;; Shell-specific LSP settings
-    (setq lsp-bash-highlight-parsing-errors t))
+  ;; Moving this outside of with-eval-after-load to ensure it's registered early
+  (lsp-register-client
+   (make-lsp-client :new-connection (lsp-stdio-connection lsp-bash-cmd)
+                    :major-modes '(sh-mode)
+                    :priority -1
+                    :server-id 'bash-ls
+                    :activation-fn (lambda (&rest _)
+                                     (executable-find (car lsp-bash-cmd))))))
+
+;; Specialized mode for zsh configuration files
+(define-derived-mode zshrc-mode sh-mode "Zsh-Config"
+  "Major mode for editing zsh configuration files."
+  (sh-set-shell "zsh"))
+
+;; Use this mode for zshrc files (more specific patterns first)
+(add-to-list 'auto-mode-alist '("/\\.zshrc\\'" . zshrc-mode))
+(add-to-list 'auto-mode-alist '("/zshrc\\'" . zshrc-mode))
+(add-to-list 'auto-mode-alist '("\\.zshenv\\'" . zshrc-mode))
+(add-to-list 'auto-mode-alist '("\\.zprofile\\'" . zshrc-mode))
+(add-to-list 'auto-mode-alist '("\\.zsh\\'" . sh-mode))
+
+;; Add LSP support for both sh-mode and zshrc-mode
+(with-eval-after-load 'lsp-mode
+  ;; Set shell-specific LSP settings
+  (setq lsp-bash-highlight-parsing-errors t)
   
-  ;; Associate zsh files with sh-mode to get LSP support
-  (add-to-list 'auto-mode-alist '("\\.zsh\\'" . sh-mode))
-  (add-to-list 'auto-mode-alist '("zshrc\\'" . sh-mode))
-  (add-to-list 'auto-mode-alist '("\\.zshenv\\'" . sh-mode))
-  (add-to-list 'auto-mode-alist '("\\.zprofile\\'" . sh-mode)))
+  ;; Register bash-language-server for both modes
+  (lsp-register-client
+   (make-lsp-client :new-connection (lsp-stdio-connection '("bash-language-server" "start"))
+                    :major-modes '(sh-mode zshrc-mode)
+                    :priority -1
+                    :server-id 'bash-ls-zsh)))
+
+;; Add hook for the new mode to enable LSP
+(add-hook 'zshrc-mode-hook #'lsp-deferred)
+
+;; Debugging helper function
+(defun force-lsp-for-current-buffer ()
+  "Force LSP to start for the current buffer regardless of file type."
+  (interactive)
+  (let ((lsp-auto-guess-root t))
+    (lsp)))
+
+
+
 
 ;; LSP UI enhancements
 (use-package lsp-ui
@@ -926,6 +967,78 @@ _p_rev       _u_pper              _=_: upper-lower       _r_esolve
 (use-package lsp-treemacs
   :defer t
   :commands lsp-treemacs-errors-list)
+
+
+
+
+
+
+
+;; (use-package lsp-mode
+;;   :defer t
+;;   :commands (lsp lsp-deferred)
+;;   :hook ((python-mode . lsp-deferred)
+;;          (c++-mode . lsp-deferred)
+;;          (latex-mode . lsp-deferred)
+;;          (markdown-mode . lsp-deferred)
+;;          (sh-mode . lsp-deferred))   ;; Added hook for shell script mode
+;;   :init
+;;   ;; (setq lsp-keymap-prefix "C-c l")
+;;   :config
+;;   ;; Performance optimizations
+;;   (setq lsp-enable-file-watchers nil)
+;;   (setq lsp-idle-delay 0.500)
+;;   (setq lsp-log-io nil)
+;;   (setq lsp-completion-provider :capf)
+;;   (setq lsp-prefer-flymake nil)
+;;   (setq read-process-output-max (* 1024 1024))
+
+;;   ;; Features
+;;   (setq lsp-enable-symbol-highlighting t)
+;;   (setq lsp-enable-indentation nil)
+;;   (setq lsp-enable-on-type-formatting nil)
+;;   (setq lsp-signature-auto-activate nil)
+;;   (setq lsp-signature-render-documentation nil)
+;;   (setq lsp-eldoc-hook nil)
+;;   (setq lsp-modeline-code-actions-enable nil)
+;;   (setq lsp-modeline-diagnostics-enable nil)
+;;   (setq lsp-headerline-breadcrumb-enable nil)
+
+;;   ;; Language-specific settings
+;;   (lsp-register-custom-settings
+;;    '(("pyls.plugins.pycodestyle.enabled" t t)
+;;      ("pyls.plugins.pycodestyle.maxLineLength" 88 t)))
+
+;;   ;; Shell script LSP configuration using bash-language-server
+;;   (with-eval-after-load 'lsp-mode
+;;     (lsp-register-client
+;;      (make-lsp-client :new-connection (lsp-stdio-connection '("bash-language-server" "start"))
+;;                      :major-modes '(sh-mode)
+;;                      :priority -1
+;;                      :server-id 'bash-ls))
+
+;;     ;; Shell-specific LSP settings
+;;     (setq lsp-bash-highlight-parsing-errors t))
+
+;;   ;; Associate zsh files with sh-mode to get LSP support
+;;   (add-to-list 'auto-mode-alist '("\\.zsh\\'" . sh-mode))
+;;   (add-to-list 'auto-mode-alist '("zshrc\\'" . sh-mode))
+;;   (add-to-list 'auto-mode-alist '("\\.zshenv\\'" . sh-mode))
+;;   (add-to-list 'auto-mode-alist '("\\.zprofile\\'" . sh-mode)))
+
+;; ;; LSP UI enhancements
+;; (use-package lsp-ui
+;;   :defer t
+;;   :after lsp-mode
+;;   :commands lsp-ui-mode
+;;   :config
+;;   (setq lsp-ui-doc-enable nil
+;;         lsp-ui-sideline-enable nil))
+
+;; ;; Tree view for LSP
+;; (use-package lsp-treemacs
+;;   :defer t
+;;   :commands lsp-treemacs-errors-list)
 
 ;; Ensure ShellCheck is available for enhanced diagnostics
 (use-package flycheck
@@ -957,7 +1070,7 @@ _p_rev       _u_pper              _=_: upper-lower       _r_esolve
 ;;   (setq lsp-completion-provider :capf)
 ;;   (setq lsp-prefer-flymake nil)
 ;;   (setq read-process-output-max (* 1024 1024))
-  
+
 ;;   ;; Features
 ;;   (setq lsp-enable-symbol-highlighting t)
 ;;   (setq lsp-enable-indentation nil)
@@ -968,7 +1081,7 @@ _p_rev       _u_pper              _=_: upper-lower       _r_esolve
 ;;   (setq lsp-modeline-code-actions-enable nil)
 ;;   (setq lsp-modeline-diagnostics-enable nil)
 ;;   (setq lsp-headerline-breadcrumb-enable nil)
-  
+
 ;;   ;; Language-specific settings
 ;;   (lsp-register-custom-settings
 ;;    '(("pyls.plugins.pycodestyle.enabled" t t)
@@ -1330,7 +1443,7 @@ or 'LaTeX-indent-level-item-continuation' if the latter is bound."
   :config
   (require 'lsp-marksman))
 
-(add-hook 'markdown-mode-hook 
+(add-hook 'markdown-mode-hook
           (lambda ()
             (display-fill-column-indicator-mode 1)))
 
@@ -1395,23 +1508,23 @@ or 'LaTeX-indent-level-item-continuation' if the latter is bound."
   :config
   ;; Set zsh as the default shell for script mode
   (setq sh-shell-file "/bin/zsh")
-  
+
   ;; Custom indentation for zsh scripts
   (setq sh-basic-offset 2
         sh-indentation 2)
-  
+
   ;; Set zsh as default for new shell scripts
   (add-to-list 'auto-mode-alist '("\\.zsh\\'" . sh-mode))
   (add-to-list 'auto-mode-alist '("zshrc\\'" . sh-mode))
   (add-to-list 'auto-mode-alist '("\\.zshenv\\'" . sh-mode))
   (add-to-list 'auto-mode-alist '("\\.zprofile\\'" . sh-mode))
-  
+
   ;; Custom syntax highlighting for common zsh commands and constructs
   (font-lock-add-keywords
    'sh-mode
-   '(("\\<\\(typeset\\|autoload\\|zmodload\\|zstyle\\|compdef\\)\\>" 
+   '(("\\<\\(typeset\\|autoload\\|zmodload\\|zstyle\\|compdef\\)\\>"
       . font-lock-keyword-face)
-     ("\\<\\(setopt\\|unsetopt\\)\\>" 
+     ("\\<\\(setopt\\|unsetopt\\)\\>"
       . font-lock-builtin-face))))
 
 ;; Shell execution environment
@@ -1563,7 +1676,7 @@ or 'LaTeX-indent-level-item-continuation' if the latter is bound."
 ;;     (let* ((file (buffer-file-name))
 ;;            (output-file (concat (file-name-sans-extension file) "-processed.csv"))
 ;;            (column (read-string "Column to process (name or number): "))
-;;            (operation (completing-read "Operation: " 
+;;            (operation (completing-read "Operation: "
 ;;                                       '("sum" "average" "count" "unique" "sort")))
 ;;            (command (cond
 ;;                      ((string= operation "sum")
@@ -1575,7 +1688,7 @@ or 'LaTeX-indent-level-item-continuation' if the latter is bound."
 ;;                      ((string= operation "unique")
 ;;                       (format "zsh -c \"awk -F, 'NR>1 {count[$%s]++} END {for (val in count) print val, count[val]}' %s\"" column file))
 ;;                      ((string= operation "sort")
-;;                       (format "zsh -c \"awk -F, 'NR==1; NR>1' %s | sort -t, -k%s > %s && echo \\\"Sorted file saved to %s\\\"\"" 
+;;                       (format "zsh -c \"awk -F, 'NR==1; NR>1' %s | sort -t, -k%s > %s && echo \\\"Sorted file saved to %s\\\"\""
 ;;                               file column output-file output-file)))))
 ;;       (with-output-to-temp-buffer "*CSV Processing*"
 ;;         (princ (format "Processing %s...\n\n" file))
