@@ -274,9 +274,9 @@ Also handles various cleanup tasks like removing trailing whitespace."
      ((eq system-type 'gnu/linux)
       (cond
        ((string-equal (system-name) "rocky-ws")
-        (set-frame-size (selected-frame) 120 80)
-        (set-frame-position (selected-frame) 400 0)
-        (set-face-attribute 'default nil :font "SauceCodePro NFM" :height 140))
+        ;; (set-frame-size (selected-frame) 120 60)
+        ;; (set-frame-position (selected-frame) 400 0)
+        (set-face-attribute 'default nil :font "SauceCodePro NFM" :height 120))
        ((string-equal (system-name) "macbook13-linux")
         (add-to-list 'default-frame-alist '(fullscreen . maximized))
         (set-face-attribute 'default nil :font "SauceCodePro NFM" :height 200))
@@ -647,6 +647,7 @@ Also handles various cleanup tasks like removing trailing whitespace."
       completion-category-overrides '((file (styles . (basic partial-completion))))
       completion-ignore-case t)
 
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; 7. DEVELOPMENT TOOLS
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -658,6 +659,9 @@ Also handles various cleanup tasks like removing trailing whitespace."
   :custom
   (company-idle-delay 0.1)
   (company-minimum-prefix-length 2)
+  (company-selection-wrap-around t)
+  (company-tooltip-align-annotations t)
+  (company-show-numbers t)
   :config
   (setq company-files-exclusions nil)
   (setq company-files-chop-trailing-slash nil))
@@ -756,7 +760,7 @@ Also handles various cleanup tasks like removing trailing whitespace."
   :defer t
   :after yasnippet)
 
-;; Flycheck for syntax checking
+;; Flycheck for syntax checking - global configuration
 (use-package flycheck
   :defer t
   :hook (after-init . global-flycheck-mode)
@@ -799,152 +803,60 @@ Also handles various cleanup tasks like removing trailing whitespace."
   (setq dired-sidebar-use-term-integration t)
   (setq dired-sidebar-use-custom-font t))
 
-
-(use-package hydra
-  :ensure t)
-
-(use-package smerge-mode
-  :after hydra
+;; Ensure Python path is correctly set from shell
+(use-package exec-path-from-shell
+  :ensure t
   :config
-  ;; Define the custom function first
-  (defun smerge-keep-all-upstream ()
-    "Keep all upstream (lower) changes in the current buffer."
-    (interactive)
-    (save-excursion
-      (goto-char (point-min))
-      (while (re-search-forward "^<<<<<<< " nil t)
-        (smerge-keep-lower))))
-
-  ;; Then create the hydra with a reference to the function
-  (defhydra smerge-hydra
-    (:color red :hint nil :post (smerge-auto-leave))
-    "
-^Move^       ^Keep^               ^Diff^                 ^Other^
-^^-----------^^-------------------^^---------------------^^-------
-_n_ext       _b_ase               _<_: base-upper        _C_ombine
-_p_rev       _u_pper              _=_: upper-lower       _r_esolve
-^^           _l_ower              _>_: base-lower        _k_ill current
-^^           _a_ll                _R_efine               _A_ll upstream
-^^           _RET_: current       _E_diff
-"
-    ("n" smerge-next)
-    ("p" smerge-prev)
-    ("b" smerge-keep-base)
-    ("u" smerge-keep-upper)
-    ("l" smerge-keep-lower)
-    ("a" smerge-keep-all)
-    ("A" smerge-keep-all-upstream)
-    ("RET" smerge-keep-current)
-    ("\C-m" smerge-keep-current)
-    ("<" smerge-diff-base-upper)
-    ("=" smerge-diff-upper-lower)
-    (">" smerge-diff-base-lower)
-    ("R" smerge-refine)
-    ("E" smerge-ediff)
-    ("C" smerge-combine-with-next)
-    ("r" smerge-resolve)
-    ("k" smerge-kill-current)
-    ("q" nil "cancel" :color blue))
-
-  :hook (find-file . (lambda ()
-                       (save-excursion
-                         (goto-char (point-min))
-                         (when (re-search-forward "^<<<<<<< " nil t)
-                           (smerge-mode 1)))))
-
-  :bind (:map smerge-mode-map
-              ("C-c h" . smerge-hydra/body)))
-
+  (when (memq window-system '(mac ns x))
+    (exec-path-from-shell-initialize)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; 8. LANGUAGE SUPPORT
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; LSP (Language Server Protocol) Mode
-
-;; LSP (Language Server Protocol) Mode
+;; Global LSP configuration - used by all language modes
 (use-package lsp-mode
-  :defer t
   :commands (lsp lsp-deferred)
   :hook ((python-mode . lsp-deferred)
          (c++-mode . lsp-deferred)
          (latex-mode . lsp-deferred)
          (markdown-mode . lsp-deferred)
-         (sh-mode . lsp-deferred))   ;; Hook for shell script mode
+         (sh-mode . lsp-deferred)
+         (zshrc-mode . lsp-deferred))
   :init
-  ;; (setq lsp-keymap-prefix "C-c l")
-  ;; Register bash-language-server during initialization
-  ;; This ensures it's available immediately when sh-mode is loaded
-  (setq lsp-bash-highlight-parsing-errors t)
-  (setq lsp-bash-explainshellendpoint "https://explainshell.com/api/explain")
-  
-  ;; Make sure we know where to find bash-language-server
-  ;; This helps in case the executable isn't in your default PATH
-  (setq lsp-bash-cmd '("bash-language-server" "start"))
-  
-  :config
   ;; Performance optimizations
-  (setq lsp-enable-file-watchers nil)
-  (setq lsp-idle-delay 0.500)
-  (setq lsp-log-io nil)
-  (setq lsp-completion-provider :capf)
-  (setq lsp-prefer-flymake nil)
-  (setq read-process-output-max (* 1024 1024))
-  
-  ;; Features
+  (setq lsp-enable-file-watchers nil)         ;; Disable file watchers (better performance)
+  (setq lsp-idle-delay 0.500)                 ;; How often to refresh
+  (setq lsp-log-io nil)                       ;; Disable logging for better performance
+  (setq lsp-completion-provider :capf)        ;; Use capf for completion
+  (setq lsp-prefer-flymake nil)               ;; Use flycheck instead of flymake
+  (setq read-process-output-max (* 1024 1024)) ;; Increase read output for better performance
+
+  ;; Features - disable intrusive UI elements
   (setq lsp-enable-symbol-highlighting t)
-  (setq lsp-enable-indentation nil)
-  (setq lsp-enable-on-type-formatting nil)
-  (setq lsp-signature-auto-activate nil)
-  (setq lsp-signature-render-documentation nil)
-  (setq lsp-eldoc-hook nil)
-  (setq lsp-modeline-code-actions-enable nil)
-  (setq lsp-modeline-diagnostics-enable nil)
-  (setq lsp-headerline-breadcrumb-enable nil)
-  
-  ;; Language-specific settings
-  (lsp-register-custom-settings
-   '(("pyls.plugins.pycodestyle.enabled" t t)
-     ("pyls.plugins.pycodestyle.maxLineLength" 88 t)))
-  
-  ;; Shell script LSP configuration using bash-language-server
-  ;; Moving this outside of with-eval-after-load to ensure it's registered early
-  (lsp-register-client
-   (make-lsp-client :new-connection (lsp-stdio-connection lsp-bash-cmd)
-                    :major-modes '(sh-mode)
-                    :priority -1
-                    :server-id 'bash-ls
-                    :activation-fn (lambda (&rest _)
-                                     (executable-find (car lsp-bash-cmd))))))
+  (setq lsp-enable-indentation nil)           ;; Don't use LSP's indentation
+  (setq lsp-enable-on-type-formatting nil)    ;; Disable automatic formatting
+  (setq lsp-signature-auto-activate nil)      ;; Don't show signature help automatically
+  (setq lsp-signature-render-documentation nil) ;; Don't render doc with signature
+  (setq lsp-eldoc-hook nil)                  ;; Disable eldoc for LSP (can be noisy)
+  (setq lsp-modeline-code-actions-enable nil) ;; Disable code actions on modeline
+  (setq lsp-modeline-diagnostics-enable nil)  ;; Disable diagnostics on modeline
+  (setq lsp-headerline-breadcrumb-enable nil)) ;; Disable breadcrumbs in header line
 
-;; Specialized mode for zsh configuration files
-(define-derived-mode zshrc-mode sh-mode "Zsh-Config"
-  "Major mode for editing zsh configuration files."
-  (sh-set-shell "zsh"))
+;; LSP UI enhancements - apply to all LSP instances
+(use-package lsp-ui
+  :after lsp-mode
+  :commands lsp-ui-mode
+  :config
+  (setq lsp-ui-doc-enable nil                ;; Disable documentation popup
+        lsp-ui-sideline-enable nil))          ;; Disable sideline
 
-;; Use this mode for zshrc files (more specific patterns first)
-(add-to-list 'auto-mode-alist '("/\\.zshrc\\'" . zshrc-mode))
-(add-to-list 'auto-mode-alist '("/zshrc\\'" . zshrc-mode))
-(add-to-list 'auto-mode-alist '("\\.zshenv\\'" . zshrc-mode))
-(add-to-list 'auto-mode-alist '("\\.zprofile\\'" . zshrc-mode))
-(add-to-list 'auto-mode-alist '("\\.zsh\\'" . sh-mode))
+;; Tree view for LSP - used by all LSP instances
+(use-package lsp-treemacs
+  :defer t
+  :commands lsp-treemacs-errors-list)
 
-;; Add LSP support for both sh-mode and zshrc-mode
-(with-eval-after-load 'lsp-mode
-  ;; Set shell-specific LSP settings
-  (setq lsp-bash-highlight-parsing-errors t)
-  
-  ;; Register bash-language-server for both modes
-  (lsp-register-client
-   (make-lsp-client :new-connection (lsp-stdio-connection '("bash-language-server" "start"))
-                    :major-modes '(sh-mode zshrc-mode)
-                    :priority -1
-                    :server-id 'bash-ls-zsh)))
-
-;; Add hook for the new mode to enable LSP
-(add-hook 'zshrc-mode-hook #'lsp-deferred)
-
-;; Debugging helper function
+;; Debugging helper function for any language
 (defun force-lsp-for-current-buffer ()
   "Force LSP to start for the current buffer regardless of file type."
   (interactive)
@@ -952,163 +864,17 @@ _p_rev       _u_pper              _=_: upper-lower       _r_esolve
     (lsp)))
 
 
-
-
-;; LSP UI enhancements
-(use-package lsp-ui
-  :defer t
-  :after lsp-mode
-  :commands lsp-ui-mode
-  :config
-  (setq lsp-ui-doc-enable nil
-        lsp-ui-sideline-enable nil))
-
-;; Tree view for LSP
-(use-package lsp-treemacs
-  :defer t
-  :commands lsp-treemacs-errors-list)
-
-
-
-
-
-
-
-;; (use-package lsp-mode
-;;   :defer t
-;;   :commands (lsp lsp-deferred)
-;;   :hook ((python-mode . lsp-deferred)
-;;          (c++-mode . lsp-deferred)
-;;          (latex-mode . lsp-deferred)
-;;          (markdown-mode . lsp-deferred)
-;;          (sh-mode . lsp-deferred))   ;; Added hook for shell script mode
-;;   :init
-;;   ;; (setq lsp-keymap-prefix "C-c l")
-;;   :config
-;;   ;; Performance optimizations
-;;   (setq lsp-enable-file-watchers nil)
-;;   (setq lsp-idle-delay 0.500)
-;;   (setq lsp-log-io nil)
-;;   (setq lsp-completion-provider :capf)
-;;   (setq lsp-prefer-flymake nil)
-;;   (setq read-process-output-max (* 1024 1024))
-
-;;   ;; Features
-;;   (setq lsp-enable-symbol-highlighting t)
-;;   (setq lsp-enable-indentation nil)
-;;   (setq lsp-enable-on-type-formatting nil)
-;;   (setq lsp-signature-auto-activate nil)
-;;   (setq lsp-signature-render-documentation nil)
-;;   (setq lsp-eldoc-hook nil)
-;;   (setq lsp-modeline-code-actions-enable nil)
-;;   (setq lsp-modeline-diagnostics-enable nil)
-;;   (setq lsp-headerline-breadcrumb-enable nil)
-
-;;   ;; Language-specific settings
-;;   (lsp-register-custom-settings
-;;    '(("pyls.plugins.pycodestyle.enabled" t t)
-;;      ("pyls.plugins.pycodestyle.maxLineLength" 88 t)))
-
-;;   ;; Shell script LSP configuration using bash-language-server
-;;   (with-eval-after-load 'lsp-mode
-;;     (lsp-register-client
-;;      (make-lsp-client :new-connection (lsp-stdio-connection '("bash-language-server" "start"))
-;;                      :major-modes '(sh-mode)
-;;                      :priority -1
-;;                      :server-id 'bash-ls))
-
-;;     ;; Shell-specific LSP settings
-;;     (setq lsp-bash-highlight-parsing-errors t))
-
-;;   ;; Associate zsh files with sh-mode to get LSP support
-;;   (add-to-list 'auto-mode-alist '("\\.zsh\\'" . sh-mode))
-;;   (add-to-list 'auto-mode-alist '("zshrc\\'" . sh-mode))
-;;   (add-to-list 'auto-mode-alist '("\\.zshenv\\'" . sh-mode))
-;;   (add-to-list 'auto-mode-alist '("\\.zprofile\\'" . sh-mode)))
-
-;; ;; LSP UI enhancements
-;; (use-package lsp-ui
-;;   :defer t
-;;   :after lsp-mode
-;;   :commands lsp-ui-mode
-;;   :config
-;;   (setq lsp-ui-doc-enable nil
-;;         lsp-ui-sideline-enable nil))
-
-;; ;; Tree view for LSP
-;; (use-package lsp-treemacs
-;;   :defer t
-;;   :commands lsp-treemacs-errors-list)
-
-;; Ensure ShellCheck is available for enhanced diagnostics
-(use-package flycheck
-  :defer t
-  :hook (sh-mode . flycheck-mode)
-  :config
-  (setq flycheck-shellcheck-follow-sources t))
-
-
-
-
-
-
-;; ;; LSP (Language Server Protocol) Mode
-;; (use-package lsp-mode
-;;   :defer t
-;;   :commands (lsp lsp-deferred)
-;;   :hook ((python-mode . lsp-deferred)
-;;          (c++-mode . lsp-deferred)
-;;          (latex-mode . lsp-deferred)
-;;          (markdown-mode . lsp-deferred))
-;;   :init
-;;   ;; (setq lsp-keymap-prefix "C-c l")
-;;   :config
-;;   ;; Performance optimizations
-;;   (setq lsp-enable-file-watchers nil)
-;;   (setq lsp-idle-delay 0.500)
-;;   (setq lsp-log-io nil)
-;;   (setq lsp-completion-provider :capf)
-;;   (setq lsp-prefer-flymake nil)
-;;   (setq read-process-output-max (* 1024 1024))
-
-;;   ;; Features
-;;   (setq lsp-enable-symbol-highlighting t)
-;;   (setq lsp-enable-indentation nil)
-;;   (setq lsp-enable-on-type-formatting nil)
-;;   (setq lsp-signature-auto-activate nil)
-;;   (setq lsp-signature-render-documentation nil)
-;;   (setq lsp-eldoc-hook nil)
-;;   (setq lsp-modeline-code-actions-enable nil)
-;;   (setq lsp-modeline-diagnostics-enable nil)
-;;   (setq lsp-headerline-breadcrumb-enable nil)
-
-;;   ;; Language-specific settings
-;;   (lsp-register-custom-settings
-;;    '(("pyls.plugins.pycodestyle.enabled" t t)
-;;      ("pyls.plugins.pycodestyle.maxLineLength" 88 t))))
-
-;; ;; LSP UI enhancements
-;; (use-package lsp-ui
-;;   :defer t
-;;   :after lsp-mode
-;;   :commands lsp-ui-mode
-;;   :config
-;;   (setq lsp-ui-doc-enable nil
-;;         lsp-ui-sideline-enable nil))
-
-;; ;; Tree view for LSP
-;; (use-package lsp-treemacs
-;;   :defer t
-;;   :commands lsp-treemacs-errors-list)
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; 8.1 PYTHON
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; Basic Python settings
+
+
+;;; 1. Basic Python settings
+;; Set indentation level
 (setq python-indent-offset 4)
 
-;; Pyenv configuration
+;;; 2. Python Environment Management (pyenv)
 (use-package pyenv-mode
   :defer t
   :init
@@ -1121,21 +887,137 @@ _p_rev       _u_pper              _=_: upper-lower       _r_esolve
   :hook (python-mode . pyenv-mode)
   :bind ("C-c C-s" . pyenv-mode-set))
 
-;; Ruff for Python linting
-(use-package flymake-ruff
-  :defer t
-  :hook (python-mode . flymake-ruff-load))
+;;; 3. Python Linting with flake8
+;; Define flake8 as a Python syntax checker in Flycheck
+(with-eval-after-load 'flycheck
+  (setq flycheck-python-flake8-executable "flake8")
+  
+  ;; Configure flake8 options
+  (setq flycheck-flake8rc ".flake8")  ;; Use .flake8 config file if present
+  (setq flycheck-flake8-maximum-line-length 88)  ;; Match Black's default line length
+  
+  ;; Prioritize flake8 for Python
+  (flycheck-add-next-checker 'python-flake8 'python-pylint t))
 
-;; Helper function to set Python interpreter
-(defun my/set-flycheck-python-interpreter ()
-  "Set Flycheck Python interpreter to the one specified by pyenv."
-  (let ((pyenv-path (executable-find "python")))
-    (setq-local flycheck-python-pyflakes-executable pyenv-path)
-    (setq-local flycheck-python-flake8-executable pyenv-path)))
+;; Enable flycheck in Python mode
+(add-hook 'python-mode-hook 'flycheck-mode)
 
-(add-hook 'python-mode-hook #'my/set-flycheck-python-interpreter)
+;;; 4. Python LSP Configuration
+(with-eval-after-load 'lsp-mode
+  ;; Python LSP settings
+  (setq lsp-pylsp-plugins-flake8-enabled t)  ;; Enable flake8
+  (setq lsp-pylsp-plugins-flake8-max-line-length 88)  ;; Match Black's default
+  
+  ;; Disable tools we're not using
+  (setq lsp-pylsp-plugins-pycodestyle-enabled nil)
+  (setq lsp-pylsp-plugins-mccabe-enabled nil)
+  
+  ;; Disable Ruff LSP integration completely
+  (setq lsp-pylsp-plugins-ruff-enabled nil)
+  
+  ;; Ensure we're only using a single LSP server (pylsp)
+  (setq lsp-pylsp-server-command "pylsp")
+  (setq lsp-clients-pylsp-library-directories '("/usr"))
+  
+  ;; Disable the standalone Ruff LSP server
+  (setq lsp-disabled-clients '(ruff-lsp))
+  
+  ;; Configure server for Python
+  (lsp-register-custom-settings
+   '(("pylsp.plugins.flake8.maxLineLength" 88 t)
+     ("pylsp.plugins.pyflakes.enabled" t t)
+     ("pylsp.plugins.black.enabled" t t)
+     ("pylsp.plugins.isort.enabled" t t))))
 
-;; Indentation guides for Python
+;; Virtual env support
+(defun my/setup-python-lsp ()
+  "Set up Python LSP environment with current pyenv."
+  (interactive)
+  ;; Skip the auto-detection of pyenv versions - this was causing the error
+  
+  ;; Just use the current Python executable, whatever it might be
+  (let ((python-executable (executable-find "python")))
+    ;; Update Python executable for LSP
+    (when python-executable
+      (setq-local lsp-pylsp-server-command python-executable))
+    
+    ;; Log info for debugging
+    (message "Using Python: %s" python-executable)))
+
+;; Add hook to setup Python LSP environment
+(add-hook 'python-mode-hook #'my/setup-python-lsp)
+
+;;; 5. Format on Save with Black and isort
+(defun my/format-python-with-black ()
+  "Format the current buffer with Black."
+  (interactive)
+  (when (derived-mode-p 'python-mode)
+    (let* ((file-name (buffer-file-name))
+           (temp-buffer (generate-new-buffer " *black-temp*")))
+      (unwind-protect
+          (when file-name  ;; Only proceed if buffer is visiting a file
+            ;; Run black with explicit line length
+            (if (zerop (call-process "black" nil temp-buffer nil
+                                  "--line-length=88" file-name))
+                (progn
+                  ;; Reload the file content after formatting
+                  (revert-buffer t t t)
+                  (message "Formatted with Black"))
+              (with-current-buffer temp-buffer
+                (message "Black format failed: %s" (buffer-string)))))
+        (kill-buffer temp-buffer)))))
+
+(defun my/sort-imports-with-isort ()
+  "Sort Python imports with isort."
+  (interactive)
+  (when (derived-mode-p 'python-mode)
+    (let* ((file-name (buffer-file-name))
+           (temp-buffer (generate-new-buffer " *isort-temp*")))
+      (unwind-protect
+          (when file-name  ;; Only proceed if buffer is visiting a file
+            ;; Run isort with profile black to ensure compatibility
+            (if (zerop (call-process "isort" nil temp-buffer nil
+                                  "--profile=black" file-name))
+                (progn
+                  ;; Reload the file content after sorting imports
+                  (revert-buffer t t t)
+                  (message "Imports sorted with isort"))
+              (with-current-buffer temp-buffer
+                (message "isort failed: %s" (buffer-string)))))
+        (kill-buffer temp-buffer)))))
+
+(defun my/format-python-buffer ()
+  "Format Python buffer with Black and isort."
+  (interactive)
+  (when (derived-mode-p 'python-mode)
+    (my/sort-imports-with-isort)
+    (my/format-python-with-black)))
+
+;; Set keybinding for formatting
+(with-eval-after-load 'python
+  (define-key python-mode-map (kbd "M-3") #'my/format-python-buffer))
+
+;; Format-on-save hook (commented out for testing)
+;; (add-hook 'python-mode-hook
+;;           (lambda ()
+;;             (add-hook 'before-save-hook #'my/format-python-buffer nil t)))
+
+;; Add a toggle function for format-on-save
+(defun my/toggle-python-format-on-save ()
+  "Toggle format-on-save for Python buffers."
+  (interactive)
+  (if (member #'my/format-python-buffer before-save-hook)
+      (progn
+        (remove-hook 'before-save-hook #'my/format-python-buffer t)
+        (message "Python format-on-save disabled"))
+    (add-hook 'before-save-hook #'my/format-python-buffer nil t)
+    (message "Python format-on-save enabled")))
+
+;; Bind the toggle function to a key
+(with-eval-after-load 'python
+  (define-key python-mode-map (kbd "C-c C-t") #'my/toggle-python-format-on-save))
+
+;;; 6. Visual Indentation Guides for Python
 (use-package indent-bars
   :defer t
   :straight (indent-bars :type git :host github :repo "jdtsmith/indent-bars")
@@ -1158,16 +1040,11 @@ _p_rev       _u_pper              _=_: upper-lower       _r_esolve
    indent-bars-highlight-current-depth '(:blend 0.5))
   :hook ((python-base-mode) . indent-bars-mode))
 
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; 8.2 C++
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; ===== C++ Configuration with LSP Support =====
-
-;; --- Package setup ---
-;; Make sure use-package is installed
-(require 'use-package)
-(setq use-package-always-ensure t)
 
 ;; --- Basic C++ settings with consistent 4-space indentation ---
 (setq-default c-basic-offset 4)
@@ -1217,9 +1094,7 @@ _p_rev       _u_pper              _=_: upper-lower       _r_esolve
     (font-lock-mode 1)
     (setq-local font-lock-support-mode nil)
     (c-toggle-auto-newline -1)
-    (c-toggle-hungry-state -1)
-    (when (fboundp 'eglot-managed-p)
-      (add-hook 'after-save-hook #'eglot-ensure nil t))))
+    (c-toggle-hungry-state -1)))
 
 (add-hook 'c++-mode-hook 'my/setup-cpp-for-large-files)
 
@@ -1232,53 +1107,71 @@ _p_rev       _u_pper              _=_: upper-lower       _r_esolve
   :bind (("C-c f" . clang-format-buffer)
          ("C-c r f" . clang-format-region)))
 
-;; --- LSP Setup with Eglot (built into Emacs 29+) ---
-;; For older Emacs versions, uncomment:
-;; (use-package eglot)
-
-;; Configure Eglot for C++ with clangd
-(use-package eglot
-  :ensure nil  ; Built into Emacs 29+
-  :hook ((c-mode c++-mode) . eglot-ensure)
-  :config
-  (add-to-list 'eglot-server-programs
-               '((c++-mode c-mode) . ("clangd" "--header-insertion=never"
-                                      "--completion-style=detailed"
-                                      "--background-index"
-                                      "--clang-tidy"
-                                      "--suggest-missing-includes"))))
-
-;; --- Optional: Company for code completion ---
-(use-package company
-  :hook (after-init . global-company-mode)
-  :config
-  (setq company-minimum-prefix-length 1
-        company-idle-delay 0.1))
-
-;; --- Project management ---
-(use-package projectile
-  :config
-  (projectile-mode +1)
-  :bind-keymap
-  ("C-c p" . projectile-command-map))
+;; LSP configuration for C++ with clangd
+(with-eval-after-load 'lsp-mode
+  (add-to-list 'lsp-language-id-configuration '(c++-mode . "cpp"))
+  
+  ;; Register clangd as the LSP server for C++
+  (lsp-register-client
+   (make-lsp-client :new-connection (lsp-stdio-connection
+                                     '("clangd" "--header-insertion=never"
+                                       "--completion-style=detailed"
+                                       "--background-index"
+                                       "--clang-tidy"
+                                       "--suggest-missing-includes"))
+                    :major-modes '(c++-mode c-mode)
+                    :priority -1
+                    :server-id 'clangd)))
 
 ;; --- Compilation settings ---
 (setq compile-command "cmake -B build -G Ninja && cmake --build build")
 (global-set-key (kbd "C-c C-c") 'compile)
 
-;; --- Optional: Flycheck for on-the-fly syntax checking ---
-(use-package flycheck
-  :hook (c++-mode . flycheck-mode))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; 8.3 SHELL & ZSH
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; Make sure PATH is set correctly to find clangd and other tools
-(when (memq window-system '(mac ns))
-  (use-package exec-path-from-shell
-    :config
-    (exec-path-from-shell-initialize)))
+;; Specialized mode for zsh configuration files
+(define-derived-mode zshrc-mode sh-mode "Zsh-Config"
+  "Major mode for editing zsh configuration files."
+  (sh-set-shell "zsh"))
+
+;; Use this mode for zshrc files (more specific patterns first)
+(add-to-list 'auto-mode-alist '("/\\.zshrc\\'" . zshrc-mode))
+(add-to-list 'auto-mode-alist '("/zshrc\\'" . zshrc-mode))
+(add-to-list 'auto-mode-alist '("\\.zshenv\\'" . zshrc-mode))
+(add-to-list 'auto-mode-alist '("\\.zprofile\\'" . zshrc-mode))
+(add-to-list 'auto-mode-alist '("\\.zsh\\'" . sh-mode))
+
+;; Shell script LSP configuration
+(with-eval-after-load 'lsp-mode
+  ;; Configure bash-language-server
+  (setq lsp-bash-highlight-parsing-errors t)
+  (setq lsp-bash-explainshellendpoint "https://explainshell.com/api/explain")
+  (setq lsp-bash-cmd '("bash-language-server" "start"))
+  
+  ;; Register bash-language-server for both sh-mode and zshrc-mode
+  (lsp-register-client
+   (make-lsp-client :new-connection (lsp-stdio-connection lsp-bash-cmd)
+                    :major-modes '(sh-mode zshrc-mode)
+                    :priority -1
+                    :server-id 'bash-ls
+                    :activation-fn (lambda (&rest _)
+                                     (executable-find (car lsp-bash-cmd))))))
+
+;; Add hook for the new mode to enable LSP
+(add-hook 'zshrc-mode-hook #'lsp-deferred)
+(add-hook 'sh-mode-hook #'lsp-deferred)
+
+;; Ensure ShellCheck is available for enhanced diagnostics
+(with-eval-after-load 'flycheck
+  (setq flycheck-shellcheck-follow-sources t))
+(add-hook 'sh-mode-hook 'flycheck-mode)
+
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; 8.3 LATEX
+;; 8.4 LATEX
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; Set indentation for LaTeX lists
@@ -1421,7 +1314,7 @@ or 'LaTeX-indent-level-item-continuation' if the latter is bound."
   (add-to-list 'LaTeX-indent-environment-list '("description" LaTeX-indent-item)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; 8.4 MARKDOWN
+;; 8.5 MARKDOWN
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (use-package markdown-mode
@@ -1469,7 +1362,7 @@ or 'LaTeX-indent-level-item-continuation' if the latter is bound."
   :hook (markdown-mode . prettier-js-mode))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; 8.5 OTHER FILE FORMATS
+;; 8.6 OTHER FILE FORMATS
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; Text mode enhancements
@@ -1560,85 +1453,6 @@ or 'LaTeX-indent-level-item-continuation' if the latter is bound."
   (add-to-list 'company-backends 'company-shell)
   (add-to-list 'company-backends 'company-shell-env))
 
-;; ;; Zsh script templates
-;; (use-package yasnippet
-;;   :ensure t
-;;   :config
-;;   (yas-global-mode 1)
-;;   ;; Function to create custom zsh snippets directory if needed
-;;   (defun ensure-zsh-snippets-dir ()
-;;     (let ((zsh-snip-dir (expand-file-name "snippets/sh-mode" user-emacs-directory)))
-;;       (unless (file-exists-p zsh-snip-dir)
-;;         (make-directory zsh-snip-dir t)))))
-
-;; ;; Define a function to create a zsh script template
-;; (defun create-zsh-script ()
-;;   "Create a new zsh script with best practices."
-;;   (interactive)
-;;   (let ((file-name (read-file-name "Create zsh script: " nil nil nil nil))
-;;         (template "#!/bin/zsh
-;; # -*- mode: sh -*-
-;; #
-;; # Description: Script description here
-;; # Created: %s
-;; # Author: $USER
-;; #
-;; set -e  # Exit on error
-;; set -u  # Treat unset variables as errors
-
-;; # --- Configuration ---
-;; SCRIPT_DIR=\"${0:A:h}\"
-;; SCRIPT_NAME=\"${0:t}\"
-;; LOG_FILE=\"${LOG_FILE:-/tmp/$SCRIPT_NAME-$(date +%%Y%%m%%d).log}\"
-
-;; # --- Functions ---
-;; log() {
-;;   local timestamp=$(date +\"%%Y-%%m-%%d %%H:%%M:%%S\")
-;;   echo \"[$timestamp] $1\" | tee -a \"$LOG_FILE\"
-;; }
-
-;; usage() {
-;;   cat << EOF
-;; Usage: $SCRIPT_NAME [options]
-
-;; Options:
-;;   -h, --help     Show this help message and exit
-;;   -v, --verbose  Enable verbose output
-;; EOF
-;;   exit 1
-;; }
-
-;; # --- Parse Arguments ---
-;; verbose=0
-
-;; while [[ $# -gt 0 ]]; do
-;;   case \"$1\" in
-;;     -h|--help)
-;;       usage
-;;       ;;
-;;     -v|--verbose)
-;;       verbose=1
-;;       shift
-;;       ;;
-;;     *)
-;;       echo \"Unknown option: $1\"
-;;       usage
-;;       ;;
-;;   esac
-;; done
-
-;; # --- Main Execution ---
-;; [[ $verbose -eq 1 ]] && log \"Starting script execution\"
-
-;; # Your script logic here
-
-;; [[ $verbose -eq 1 ]] && log \"Script execution completed\"
-;; exit 0
-;; "))
-;;     (with-temp-file file-name
-;;       (insert (format template (format-time-string "%Y-%m-%d"))))
-;;     (set-file-modes file-name #o755)  ; Make executable
-;;     (find-file file-name)))
 
 ;; Function to launch zsh and execute given command
 (defun run-zsh-command (command)
@@ -1668,33 +1482,6 @@ or 'LaTeX-indent-level-item-continuation' if the latter is bound."
 
 (global-set-key (kbd "C-c z f") 'zsh-find-file)
 
-;; ;; Process CSV data with zsh and awk
-;; (defun zsh-process-csv ()
-;;   "Process current CSV file with zsh and awk."
-;;   (interactive)
-;;   (when (buffer-file-name)
-;;     (let* ((file (buffer-file-name))
-;;            (output-file (concat (file-name-sans-extension file) "-processed.csv"))
-;;            (column (read-string "Column to process (name or number): "))
-;;            (operation (completing-read "Operation: "
-;;                                       '("sum" "average" "count" "unique" "sort")))
-;;            (command (cond
-;;                      ((string= operation "sum")
-;;                       (format "zsh -c \"awk -F, 'NR>1 {sum+=$%s} END {print \\\"Sum: \\\"sum}' %s\"" column file))
-;;                      ((string= operation "average")
-;;                       (format "zsh -c \"awk -F, 'NR>1 {sum+=$%s; count++} END {print \\\"Average: \\\"sum/count}' %s\"" column file))
-;;                      ((string= operation "count")
-;;                       (format "zsh -c \"awk -F, 'END {print \\\"Rows: \\\"NR-1}' %s\"" file))
-;;                      ((string= operation "unique")
-;;                       (format "zsh -c \"awk -F, 'NR>1 {count[$%s]++} END {for (val in count) print val, count[val]}' %s\"" column file))
-;;                      ((string= operation "sort")
-;;                       (format "zsh -c \"awk -F, 'NR==1; NR>1' %s | sort -t, -k%s > %s && echo \\\"Sorted file saved to %s\\\"\""
-;;                               file column output-file output-file)))))
-;;       (with-output-to-temp-buffer "*CSV Processing*"
-;;         (princ (format "Processing %s...\n\n" file))
-;;         (princ (shell-command-to-string command))))))
-
-;; (global-set-key (kbd "C-c z d") 'zsh-process-csv)
 
 ;; Add zsh-mode custom keybindings
 (defvar zsh-mode-map
@@ -1714,11 +1501,6 @@ or 'LaTeX-indent-level-item-continuation' if the latter is bound."
 ;; Register zsh-mode for .zsh files
 (add-to-list 'auto-mode-alist '("\\.zsh\\'" . zsh-mode))
 (add-to-list 'interpreter-mode-alist '("zsh" . zsh-mode))
-
-
-
-
-
 
 
 ;; CSV mode
