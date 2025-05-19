@@ -942,16 +942,16 @@ Skips indentation for certain file types where it might cause issues."
 ;; Turn off LSP debugging (was previously enabled)
 (setq lsp-log-io nil)
 
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; 8.1 PYTHON
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
 
 ;;; 1. Basic Python settings
 ;; Set indentation level
 (setq python-indent-offset 4)
 
-;;; 2. Python Environment Management (pyenv)
+;;; 2. Python Environment Management (pyenv) - unchanged
 (use-package pyenv-mode
   :defer t
   :init
@@ -964,127 +964,36 @@ Skips indentation for certain file types where it might cause issues."
   :hook (python-mode . pyenv-mode)
   :bind ("C-c C-s" . pyenv-mode-set))
 
-;;; 3. Python Linting with flake8
-;; Define flake8 as a Python syntax checker in Flycheck
-(with-eval-after-load 'flycheck
-  (setq flycheck-python-flake8-executable "flake8")
-
-  ;; Configure flake8 options
-  (setq flycheck-flake8rc ".flake8")  ;; Use .flake8 config file if present
-  (setq flycheck-flake8-maximum-line-length 88)  ;; Match Black's default line length
-
-  ;; Prioritize flake8 for Python
-  (flycheck-add-next-checker 'python-flake8 'python-pylint t))
-
-;; Enable flycheck in Python mode
-(add-hook 'python-mode-hook 'flycheck-mode)
-
-;;; 4. Python LSP Configuration
+;;; 3. Python LSP Configuration with Ruff support
 (with-eval-after-load 'lsp-mode
-  ;; Python LSP settings
-  (setq lsp-pylsp-plugins-flake8-enabled t)  ;; Enable flake8
-  (setq lsp-pylsp-plugins-flake8-max-line-length 88)  ;; Match Black's default
-
-  ;; Disable tools we're not using
+  ;; Disable all the old linters that ruff will replace
+  (setq lsp-pylsp-plugins-flake8-enabled nil)
   (setq lsp-pylsp-plugins-pycodestyle-enabled nil)
   (setq lsp-pylsp-plugins-mccabe-enabled nil)
-
-  ;; Ensure we're only using a single LSP server (pylsp)
-  (setq lsp-pylsp-server-command "pylsp")
-  (setq lsp-clients-pylsp-library-directories '("/usr"))
-
-  ;; Configure server for Python
+  (setq lsp-pylsp-plugins-pyflakes-enabled nil)
+  (setq lsp-pylsp-plugins-pydocstyle-enabled nil)
+  
+  ;; Enable ruff through pylsp
+  (setq lsp-pylsp-plugins-ruff-enabled t)
+  
+  ;; Configure server settings for ruff
   (lsp-register-custom-settings
-   '(("pylsp.plugins.flake8.maxLineLength" 88 t)
-     ("pylsp.plugins.pyflakes.enabled" t t)
-     ("pylsp.plugins.black.enabled" t t)
-     ("pylsp.plugins.isort.enabled" t t))))
+   '(("pylsp.plugins.ruff.enabled" t t)
+     ("pylsp.plugins.ruff.lineLength" 88 t)
+     ("pylsp.plugins.ruff.format" ["I"] t))))
 
-;; Virtual env support
+;; Virtual env support - unchanged
 (defun my/setup-python-lsp ()
   "Set up Python LSP environment with current pyenv."
   (interactive)
-  ;; Skip the auto-detection of pyenv versions - this was causing the error
-
-  ;; Just use the current Python executable, whatever it might be
   (let ((python-executable (executable-find "python")))
-    ;; Update Python executable for LSP
     (when python-executable
       (setq-local lsp-pylsp-server-command python-executable))
-
-    ;; Log info for debugging
     (message "Using Python: %s" python-executable)))
 
-;; Add hook to setup Python LSP environment
 (add-hook 'python-mode-hook #'my/setup-python-lsp)
 
-;; ;;; 5. Format on Save with Black and isort
-;; (defun my/format-python-with-black ()
-;;   "Format the current buffer with Black."
-;;   (interactive)
-;;   (when (derived-mode-p 'python-mode)
-;;     (let* ((file-name (buffer-file-name))
-;;            (temp-buffer (generate-new-buffer " *black-temp*")))
-;;       (unwind-protect
-;;           (when file-name  ;; Only proceed if buffer is visiting a file
-;;             ;; Run black with explicit line length
-;;             (if (zerop (call-process "black" nil temp-buffer nil
-;;                                      "--line-length=88" file-name))
-;;                 (progn
-;;                   ;; Reload the file content after formatting
-;;                   (revert-buffer t t t)
-;;                   (message "Formatted with Black"))
-;;               (with-current-buffer temp-buffer
-;;                 (message "Black format failed: %s" (buffer-string)))))
-;;         (kill-buffer temp-buffer)))))
-
-;; (defun my/sort-imports-with-isort ()
-;;   "Sort Python imports with isort."
-;;   (interactive)
-;;   (when (derived-mode-p 'python-mode)
-;;     (let* ((file-name (buffer-file-name))
-;;            (temp-buffer (generate-new-buffer " *isort-temp*")))
-;;       (unwind-protect
-;;           (when file-name  ;; Only proceed if buffer is visiting a file
-;;             ;; Run isort with profile black to ensure compatibility
-;;             (if (zerop (call-process "isort" nil temp-buffer nil
-;;                                      "--profile=black" file-name))
-;;                 (progn
-;;                   ;; Reload the file content after sorting imports
-;;                   (revert-buffer t t t)
-;;                   (message "Imports sorted with isort"))
-;;               (with-current-buffer temp-buffer
-;;                 (message "isort failed: %s" (buffer-string)))))
-;;         (kill-buffer temp-buffer)))))
-
-;; (defun my/format-python-buffer ()
-;;   "Format Python buffer with Black and isort."
-;;   (interactive)
-;;   (when (derived-mode-p 'python-mode)
-;;     (my/sort-imports-with-isort)
-;;     (my/format-python-with-black)))
-
-;; ;; Set keybinding for formatting
-;; (with-eval-after-load 'python
-;;   (define-key python-mode-map (kbd "M-3") #'my/format-python-buffer))
-
-
-;; ;; Add a toggle function for format-on-save
-;; (defun my/toggle-python-format-on-save ()
-;;   "Toggle format-on-save for Python buffers."
-;;   (interactive)
-;;   (if (member #'my/format-python-buffer before-save-hook)
-;;       (progn
-;;         (remove-hook 'before-save-hook #'my/format-python-buffer t)
-;;         (message "Python format-on-save disabled"))
-;;     (add-hook 'before-save-hook #'my/format-python-buffer nil t)
-;;     (message "Python format-on-save enabled")))
-
-;; ;; Bind the toggle function to a key
-;; (with-eval-after-load 'python
-;;   (define-key python-mode-map (kbd "C-c C-t") #'my/toggle-python-format-on-save))
-
-;;; 6. Visual Indentation Guides for Python
+;; Visual Indentation Guides for Python - unchanged
 (use-package indent-bars
   :defer t
   :straight (indent-bars :type git :host github :repo "jdtsmith/indent-bars")
@@ -1107,57 +1016,78 @@ Skips indentation for certain file types where it might cause issues."
    indent-bars-highlight-current-depth '(:blend 0.5))
   :hook ((python-base-mode) . indent-bars-mode))
 
-;;; Format on Save with Black and isort
-(use-package python-black
-  :ensure t
-  :after python
-  :config
-  ;; Configure black with your preferred settings
-  (setq python-black-extra-args '("--line-length=88"))
-  ;; Set up format-on-save
-  (setq python-black-on-save-mode nil)  ;; Start disabled - enable per-project as needed
-  ;; Keybinding for manual formatting
-  (define-key python-mode-map (kbd "C-c b") 'python-black-buffer)
-  ;; Command to toggle format-on-save
-  (define-key python-mode-map (kbd "C-c C-b") 'python-black-on-save-mode))
-
-(use-package py-isort
-  :ensure t
-  :after python
-  :config
-  ;; Configure isort with your preferred settings
-  (setq py-isort-options '("--profile=black"))
-  ;; Don't auto-save by default - enable per-project as needed
-  (remove-hook 'before-save-hook 'py-isort-before-save)
-  ;; Keybinding for manual sorting
-  (define-key python-mode-map (kbd "C-c i") 'py-isort-buffer)
-  ;; Toggle auto-isort-on-save
-  (defun toggle-py-isort-on-save ()
-    "Toggle isort-on-save."
-    (interactive)
-    (if (member 'py-isort-before-save before-save-hook)
-        (progn
-          (remove-hook 'before-save-hook 'py-isort-before-save)
-          (message "isort before save disabled"))
-      (add-hook 'before-save-hook 'py-isort-before-save)
-      (message "isort before save enabled")))
-  (define-key python-mode-map (kbd "C-c C-i") 'toggle-py-isort-on-save))
-
-;; Combined format function (like your previous my/format-python-buffer)
-(defun format-python-buffer-with-black-and-isort ()
-  "Format Python buffer with Black and isort."
+;; Ruff format direct integration:
+(defun my-ruff-format-buffer ()
+  "Format current buffer using ruff format."
   (interactive)
-  (when (derived-mode-p 'python-mode)
-    (py-isort-buffer)
-    (python-black-buffer)))
+  (let ((file (buffer-file-name))
+        (current-point (point)))
+    (when file
+      (message "Formatting %s with ruff format..." file)
+      (shell-command (format "ruff format %s" file))
+      (revert-buffer t t t)
+      (goto-char current-point)
+      (message "Formatting with ruff format done"))))
 
-;; Combine the two actions with your existing keybinding
+;; Direct shell command for ruff check --fix
+(defun my-ruff-check-fix-buffer ()
+  "Check and fix current buffer using ruff check --fix."
+  (interactive)
+  (let ((file (buffer-file-name))
+        (current-point (point)))
+    (when file
+      (message "Checking and fixing %s with ruff..." file)
+      ;; Use more comprehensive rule set
+      (shell-command (format "ruff check --select=E,F,I --fix %s" file))
+      (revert-buffer t t t)
+      (goto-char current-point)
+      (message "Checking and fixing with ruff done"))))
+
+;; Add a toggle for format-on-save
+(defvar my-ruff-format-on-save nil
+  "Whether to run ruff format on save.")
+
+(defun my-ruff-format-maybe ()
+  "Run ruff format if `my-ruff-format-on-save' is non-nil."
+  (when (and my-ruff-format-on-save
+             (eq major-mode 'python-mode))
+    (my-ruff-format-buffer)))
+
+(defun my-ruff-toggle-format-on-save ()
+  "Toggle format-on-save with ruff."
+  (interactive)
+  (setq my-ruff-format-on-save (not my-ruff-format-on-save))
+  (if my-ruff-format-on-save
+      (progn
+        (add-hook 'before-save-hook 'my-ruff-format-maybe)
+        (message "Ruff format on save enabled"))
+    (remove-hook 'before-save-hook 'my-ruff-format-maybe)
+    (message "Ruff format on save disabled")))
+
+(defun my-ruff-sort-imports ()
+  "Sort imports in the current buffer using ruff."
+  (interactive)
+  (let ((file (buffer-file-name))
+        (current-point (point)))
+    (when file
+      (message "Sorting imports in %s..." file)
+      (shell-command (format "ruff check --select=I --fix %s" file))
+      (revert-buffer t t t)
+      (goto-char current-point)
+      (message "Import sorting done"))))
+
+;; Add another keybinding for just import sorting
 (with-eval-after-load 'python
-  (define-key python-mode-map (kbd "M-3") 'format-python-buffer-with-black-and-isort))
+  (define-key python-mode-map (kbd "C-c i") 'my-ruff-sort-imports))
 
-;; Optional: Enable both for all Python files (alternative to per-project approach above)
-;; (add-hook 'python-mode-hook 'python-black-on-save-mode)
-;; (add-hook 'before-save-hook 'py-isort-before-save)
+;; Bind the keys
+(with-eval-after-load 'python
+  (define-key python-mode-map (kbd "C-c r") 'my-ruff-format-buffer)
+  (define-key python-mode-map (kbd "C-c C-r") 'my-ruff-check-fix-buffer)
+  (define-key python-mode-map (kbd "M-3") 'my-ruff-format-buffer)
+  (define-key python-mode-map (kbd "C-c C-f") 'my-ruff-toggle-format-on-save))
+
+
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
