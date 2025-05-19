@@ -196,21 +196,21 @@ Skips indentation for certain file types where it might cause issues."
   ;; List of file extensions/modes where we should skip full indentation
   (let ((skip-indent-extensions '(".flake8" "flake8rc" ".gitignore" ".ini" ".conf" ".cfg"))
         (skip-indent-modes '(conf-mode ini-mode)))
-    
+
     ;; Check if current file should skip indentation
     (let ((should-indent t)
           (file-name (buffer-file-name)))
-      
+
       ;; Skip based on file extension
       (when file-name
         (dolist (ext skip-indent-extensions)
           (when (string-match-p (regexp-quote ext) file-name)
             (setq should-indent nil))))
-      
+
       ;; Skip based on major mode
       (when (member major-mode skip-indent-modes)
         (setq should-indent nil))
-      
+
       ;; Remember window position
       (let ((window-start (window-start)))
         ;; Remember cursor position
@@ -801,10 +801,21 @@ Skips indentation for certain file types where it might cause issues."
   (setq flycheck-python-flake8-executable "flake8"))
 
 
-(advice-add 'flycheck-flake8-verify
-            :after (lambda (&rest _)
-                     (message "Flycheck flake8 command: %s"
-                              (mapconcat 'identity (flycheck-checker-substituted-command 'python-flake8) " "))))
+(advice-add 'flycheck-start-command-checker
+            :around (lambda (orig-fun checker callback)
+                      (when (eq checker 'python-flake8)
+                        (message "Running flake8 command: %s"
+                                 (mapconcat 'identity
+                                            (flycheck-checker-substituted-command checker)
+                                            " ")))
+                      (funcall orig-fun checker callback)))
+
+(advice-add 'flycheck-flake8-config-file
+            :around (lambda (orig-fun &rest args)
+                      (let ((result (apply orig-fun args)))
+                        (message "Flake8 config file: %s" (or result "None"))
+                        result)))
+
 
 ;; Project management
 (use-package projectile
@@ -851,6 +862,7 @@ Skips indentation for certain file types where it might cause issues."
 
 ;; Global LSP configuration - used by all language modes
 (use-package lsp-mode
+  :ensure t
   :commands (lsp lsp-deferred)
   :hook ((python-mode . lsp-deferred)
          (c++-mode . lsp-deferred)
@@ -858,38 +870,58 @@ Skips indentation for certain file types where it might cause issues."
          (markdown-mode . lsp-deferred)
          (sh-mode . lsp-deferred)
          (zshrc-mode . lsp-deferred))
-  :config
-  ;; Configure pylsp to use your flake8 config
-  (setq lsp-pylsp-plugins-flake8-config ".flake8")
-  ;; Make sure LSP's flake8 is enabled
-  (setq lsp-pylsp-plugins-flake8-enabled t)
   :init
   ;; Performance optimizations
-  (setq lsp-enable-file-watchers nil)         ;; Disable file watchers (better performance)
-  (setq lsp-idle-delay 0.500)                 ;; How often to refresh
-  (setq lsp-log-io nil)                       ;; Disable logging for better performance
-  (setq lsp-completion-provider :capf)        ;; Use capf for completion
-  (setq lsp-prefer-flymake nil)               ;; Use flycheck instead of flymake
-  (setq read-process-output-max (* 1024 1024)) ;; Increase read output for better performance
+  (setq lsp-enable-file-watchers nil)           ;; Disable file watchers (better performance)
+  (setq lsp-idle-delay 0.500)                   ;; How often to refresh
+  (setq lsp-log-io nil)                         ;; Disable logging for better performance
+  (setq lsp-completion-provider :capf)          ;; Use capf for completion
+  (setq lsp-prefer-flymake nil)                 ;; Use flycheck instead of flymake
+  (setq read-process-output-max (* 1024 1024))  ;; Increase read output for better performance
 
   ;; Features - disable intrusive UI elements
   (setq lsp-enable-symbol-highlighting t)
-  (setq lsp-enable-indentation nil)           ;; Don't use LSP's indentation
-  (setq lsp-enable-on-type-formatting nil)    ;; Disable automatic formatting
-  (setq lsp-signature-auto-activate nil)      ;; Don't show signature help automatically
+  (setq lsp-enable-indentation nil)             ;; Don't use LSP's indentation
+  (setq lsp-enable-on-type-formatting nil)      ;; Disable automatic formatting
+  (setq lsp-signature-auto-activate nil)        ;; Don't show signature help automatically
   (setq lsp-signature-render-documentation nil) ;; Don't render doc with signature
-  (setq lsp-eldoc-hook nil)                  ;; Disable eldoc for LSP (can be noisy)
-  (setq lsp-modeline-code-actions-enable nil) ;; Disable code actions on modeline
-  (setq lsp-modeline-diagnostics-enable nil)  ;; Disable diagnostics on modeline
-  (setq lsp-headerline-breadcrumb-enable nil)) ;; Disable breadcrumbs in header line
+  (setq lsp-eldoc-hook nil)                     ;; Disable eldoc for LSP (can be noisy)
+  (setq lsp-modeline-code-actions-enable nil)   ;; Disable code actions on modeline
+  (setq lsp-modeline-diagnostics-enable nil)    ;; Disable diagnostics on modeline
+  (setq lsp-headerline-breadcrumb-enable nil)   ;; Disable breadcrumbs in header line
+
+  :config
+  ;; Diagnostics setup
+  (setq lsp-diagnostics-provider :flycheck)     ;; Use flycheck for displaying diagnostics
+
+  ;; Python-specific LSP configuration
+  (setq lsp-pylsp-plugins-flake8-enabled t)     ;; Enable flake8 plugin
+  (setq lsp-pylsp-plugins-flake8-config nil)    ;; Use project's .flake8 file
+
+  ;; Disable redundant linters to avoid conflicts with flake8
+  (setq lsp-pylsp-plugins-pycodestyle-enabled nil)  ;; Let flake8 handle style
+  (setq lsp-pylsp-plugins-mccabe-enabled nil)       ;; Let flake8 handle complexity
+  (setq lsp-pylsp-plugins-pyflakes-enabled nil)     ;; Let flake8 handle basic checks
+
+  ;; Configure docstring checking
+  (setq lsp-pylsp-plugins-pydocstyle-enabled nil)   ;; Let flake8 handle docstrings
+
+  ;; Add LSP restart function for when config files change
+  (defun restart-lsp-server ()
+    "Restart the LSP server for the current project."
+    (interactive)
+    (lsp-workspace-restart (lsp--session-workspace (lsp-session) (lsp--buffer-uri))))
+
+  ;; Add keybinding for restarting LSP
+  (define-key lsp-mode-map (kbd "C-c C-l r") 'restart-lsp-server))
 
 ;; LSP UI enhancements - apply to all LSP instances
 (use-package lsp-ui
   :after lsp-mode
   :commands lsp-ui-mode
   :config
-  (setq lsp-ui-doc-enable nil                ;; Disable documentation popup
-        lsp-ui-sideline-enable nil))          ;; Disable sideline
+  (setq lsp-ui-doc-enable nil                   ;; Disable documentation popup
+        lsp-ui-sideline-enable nil))            ;; Disable sideline
 
 ;; Tree view for LSP - used by all LSP instances
 (use-package lsp-treemacs
@@ -903,19 +935,16 @@ Skips indentation for certain file types where it might cause issues."
   (let ((lsp-auto-guess-root t))
     (lsp)))
 
-;; Disable Flycheck's flake8 checker to avoid duplication
+;; Disable Flycheck's flake8 checker to avoid duplication with LSP
 (with-eval-after-load 'flycheck
   (setq-default flycheck-disabled-checkers '(python-flake8)))
 
-;; Add this to your Emacs config to see why pylsp is crashing
-(setq lsp-log-io t)  ; Turn on LSP debugging
-
-;; Check the *lsp-log* buffer after restart to see why it's crashing
+;; Turn off LSP debugging (was previously enabled)
+(setq lsp-log-io nil)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; 8.1 PYTHON
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
 
 
 ;;; 1. Basic Python settings
