@@ -194,7 +194,7 @@ Also handles various cleanup tasks like removing trailing whitespace.
 Skips indentation for certain file types where it might cause issues."
   (interactive)
   ;; List of file extensions/modes where we should skip full indentation
-  (let ((skip-indent-extensions '(".flake8" "flake8rc" ".gitignore" ".ini" ".conf" ".cfg"))
+  (let ((skip-indent-extensions '(".flake8" "flake8rc" ".gitignore" ".ini" ".conf" ".cfg" ".toml"))
         (skip-indent-modes '(conf-mode ini-mode)))
 
     ;; Check if current file should skip indentation
