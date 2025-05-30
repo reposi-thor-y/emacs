@@ -119,72 +119,72 @@
 
 
 
-;; Enhanced comment/uncomment function with multi-language support
-(defun comment-or-uncomment-line-or-region ()
-  "Comments or uncomments the current line or region intelligently.
-Handles different languages including C++, Python, JSON, and shell scripts.
-For regions in C-like languages, uses block comments when appropriate."
-  (interactive)
-  (let* ((start (if (region-active-p)
-                    (save-excursion
-                      (goto-char (region-beginning))
-                      (line-beginning-position))
-                  (line-beginning-position)))
-         (end (if (region-active-p)
-                  (save-excursion
-                    (goto-char (region-end))
-                    (line-end-position))
-                (line-end-position)))
-         (use-block-comments (and (region-active-p)
-                                  (> (count-lines start end) 1)
-                                  (or (derived-mode-p 'c-mode)
-                                      (derived-mode-p 'c++-mode)
-                                      (derived-mode-p 'js-mode)
-                                      (derived-mode-p 'css-mode)))))
-    (cond
-     ;; Block comment case for multi-line C-style languages
-     (use-block-comments
-      (let ((already-commented (save-excursion
-                                 (goto-char start)
-                                 (looking-at-p "[ \t]*/\\*"))))
-        (if already-commented
-            ;; Remove block comment
-            (save-excursion
-              ;; Find and remove opening comment
-              (goto-char start)
-              (when (re-search-forward "/\\*" (+ start 10) t)
-                (replace-match "" nil nil))
-              ;; Find and remove closing comment
-              (goto-char (max (- end 10) start))
-              (when (re-search-forward "\\*/" (+ end 10) t)
-                (replace-match "" nil nil)))
-          ;; Add block comment
-          (save-excursion
-            (goto-char end)
-            (insert "*/")
-            (goto-char start)
-            (insert "/*")))))
+; ;; Enhanced comment/uncomment function with multi-language support
+; (defun comment-or-uncomment-line-or-region ()
+;   "Comments or uncomments the current line or region intelligently.
+; Handles different languages including C++, Python, JSON, and shell scripts.
+; For regions in C-like languages, uses block comments when appropriate."
+;   (interactive)
+;   (let* ((start (if (region-active-p)
+;                     (save-excursion
+;                       (goto-char (region-beginning))
+;                       (line-beginning-position))
+;                   (line-beginning-position)))
+;          (end (if (region-active-p)
+;                   (save-excursion
+;                     (goto-char (region-end))
+;                     (line-end-position))
+;                 (line-end-position)))
+;          (use-block-comments (and (region-active-p)
+;                                   (> (count-lines start end) 1)
+;                                   (or (derived-mode-p 'c-mode)
+;                                       (derived-mode-p 'c++-mode)
+;                                       (derived-mode-p 'js-mode)
+;                                       (derived-mode-p 'css-mode)))))
+;     (cond
+;      ;; Block comment case for multi-line C-style languages
+;      (use-block-comments
+;       (let ((already-commented (save-excursion
+;                                  (goto-char start)
+;                                  (looking-at-p "[ \t]*/\\*"))))
+;         (if already-commented
+;             ;; Remove block comment
+;             (save-excursion
+;               ;; Find and remove opening comment
+;               (goto-char start)
+;               (when (re-search-forward "/\\*" (+ start 10) t)
+;                 (replace-match "" nil nil))
+;               ;; Find and remove closing comment
+;               (goto-char (max (- end 10) start))
+;               (when (re-search-forward "\\*/" (+ end 10) t)
+;                 (replace-match "" nil nil)))
+;           ;; Add block comment
+;           (save-excursion
+;             (goto-char end)
+;             (insert "*/")
+;             (goto-char start)
+;             (insert "/*")))))
 
-     ;; JSON mode (which doesn't have a built-in comment functionality)
-     ((derived-mode-p 'json-mode)
-      (save-excursion
-        (let ((line-count 0))
-          (goto-char start)
-          (while (< (point) end)
-            (beginning-of-line)
-            (if (looking-at "^[ \t]*//")
-                ;; Remove comment
-                (delete-region (match-beginning 0) (+ (match-end 0)
-                                                      (if (looking-at "^[ \t]*// ") 1 0)))
-              ;; Add comment
-              (insert "// "))
-            (setq line-count (1+ line-count))
-            (when (= line-count 100) (error "Safety limit reached"))
-            (forward-line 1)))))
+;      ;; JSON mode (which doesn't have a built-in comment functionality)
+;      ((derived-mode-p 'json-mode)
+;       (save-excursion
+;         (let ((line-count 0))
+;           (goto-char start)
+;           (while (< (point) end)
+;             (beginning-of-line)
+;             (if (looking-at "^[ \t]*//")
+;                 ;; Remove comment
+;                 (delete-region (match-beginning 0) (+ (match-end 0)
+;                                                       (if (looking-at "^[ \t]*// ") 1 0)))
+;               ;; Add comment
+;               (insert "// "))
+;             (setq line-count (1+ line-count))
+;             (when (= line-count 100) (error "Safety limit reached"))
+;             (forward-line 1)))))
 
-     ;; Default for all other cases - use the built-in function
-     (t (comment-or-uncomment-region start end)))))
-(global-set-key (kbd "M-1") 'comment-or-uncomment-line-or-region)
+;      ;; Default for all other cases - use the built-in function
+;      (t (comment-or-uncomment-region start end)))))
+; (global-set-key (kbd "M-1") 'comment-or-uncomment-line-or-region)
 
 
 ;; Smart buffer indentation with file type awareness
@@ -573,9 +573,9 @@ Skips indentation for certain file types where it might cause issues."
   :init
   (vertico-mode)
   :bind (:map vertico-map
-              ("C-<backspace>" . vertico-directory-delete-char)
+;              ("C-<backspace>" . vertico-directory-delete-char)
               ("C-<return>" . vertico-exit-input)
-              ("RET" . vertico-directory-enter)
+ ;             ("RET" . vertico-directory-enter)
               ("C-n" . vertico-next)
               ("C-p" . vertico-previous)
               ("TAB" . vertico-insert))
@@ -591,12 +591,13 @@ Skips indentation for certain file types where it might cause issues."
      (consult-imenu buffer)
      (consult-ripgrep buffer)))
   :config
-  ;; Load the vertico directory extension
-  (use-package vertico-directory
-    :ensure nil ;; Part of vertico
-    :after vertico
-    :load-path "straight/build/vertico/extensions"
-    :hook (rfn-eshadow-update-overlay . vertico-directory-tidy))
+
+  ;; ;; Load the vertico directory extension
+  ;; (use-package vertico-directory
+  ;;   :ensure nil ;; Part of vertico
+  ;;   :after vertico
+  ;;   :load-path "straight/build/vertico/extensions"
+  ;;   :hook (rfn-eshadow-update-overlay . vertico-directory-tidy))
 
   (setq vertico-count-format nil)
   :custom-face
