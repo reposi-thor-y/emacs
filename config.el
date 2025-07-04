@@ -119,72 +119,105 @@
 
 
 
-; ;; Enhanced comment/uncomment function with multi-language support
-; (defun comment-or-uncomment-line-or-region ()
-;   "Comments or uncomments the current line or region intelligently.
-; Handles different languages including C++, Python, JSON, and shell scripts.
-; For regions in C-like languages, uses block comments when appropriate."
-;   (interactive)
-;   (let* ((start (if (region-active-p)
-;                     (save-excursion
-;                       (goto-char (region-beginning))
-;                       (line-beginning-position))
-;                   (line-beginning-position)))
-;          (end (if (region-active-p)
-;                   (save-excursion
-;                     (goto-char (region-end))
-;                     (line-end-position))
-;                 (line-end-position)))
-;          (use-block-comments (and (region-active-p)
-;                                   (> (count-lines start end) 1)
-;                                   (or (derived-mode-p 'c-mode)
-;                                       (derived-mode-p 'c++-mode)
-;                                       (derived-mode-p 'js-mode)
-;                                       (derived-mode-p 'css-mode)))))
-;     (cond
-;      ;; Block comment case for multi-line C-style languages
-;      (use-block-comments
-;       (let ((already-commented (save-excursion
-;                                  (goto-char start)
-;                                  (looking-at-p "[ \t]*/\\*"))))
-;         (if already-commented
-;             ;; Remove block comment
-;             (save-excursion
-;               ;; Find and remove opening comment
-;               (goto-char start)
-;               (when (re-search-forward "/\\*" (+ start 10) t)
-;                 (replace-match "" nil nil))
-;               ;; Find and remove closing comment
-;               (goto-char (max (- end 10) start))
-;               (when (re-search-forward "\\*/" (+ end 10) t)
-;                 (replace-match "" nil nil)))
-;           ;; Add block comment
-;           (save-excursion
-;             (goto-char end)
-;             (insert "*/")
-;             (goto-char start)
-;             (insert "/*")))))
+;; WSL specifics...
 
-;      ;; JSON mode (which doesn't have a built-in comment functionality)
-;      ((derived-mode-p 'json-mode)
-;       (save-excursion
-;         (let ((line-count 0))
-;           (goto-char start)
-;           (while (< (point) end)
-;             (beginning-of-line)
-;             (if (looking-at "^[ \t]*//")
-;                 ;; Remove comment
-;                 (delete-region (match-beginning 0) (+ (match-end 0)
-;                                                       (if (looking-at "^[ \t]*// ") 1 0)))
-;               ;; Add comment
-;               (insert "// "))
-;             (setq line-count (1+ line-count))
-;             (when (= line-count 100) (error "Safety limit reached"))
-;             (forward-line 1)))))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; WSL CLIPBOARD INTEGRATION
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;      ;; Default for all other cases - use the built-in function
-;      (t (comment-or-uncomment-region start end)))))
-; (global-set-key (kbd "M-1") 'comment-or-uncomment-line-or-region)
+(defun wsl-copy (start end)
+  "Copy region to Windows clipboard AND Emacs kill ring."
+  (interactive "r")
+  (let ((text (buffer-substring-no-properties start end)))
+    (kill-new text)
+    (with-temp-buffer
+      (insert text)
+      (shell-command-on-region (point-min) (point-max) "clip.exe")))
+  (deactivate-mark)
+  (message "Copied to both kill ring and Windows clipboard"))
+
+(defun wsl-paste ()
+  "Paste from Windows clipboard."
+  (interactive)
+  (let ((clipboard (shell-command-to-string "powershell.exe -command 'Get-Clipboard' 2>/dev/null")))
+    (setq clipboard (replace-regexp-in-string "\r" "" clipboard))
+    (when (> (length clipboard) 1)
+      (setq clipboard (substring clipboard 0 -1))
+      (insert clipboard)
+      (message "Pasted from Windows clipboard"))))
+
+(defun wsl-cut (start end)
+  "Cut region to Windows clipboard AND Emacs kill ring."
+  (interactive "r")
+  (wsl-copy start end)
+  (delete-region start end))
+
+(defun smart-yank ()
+  "Yank from Windows clipboard if it's newer, otherwise from kill ring."
+  (interactive)
+  (if (and (getenv "WSL_DISTRO_NAME") (not (display-graphic-p)))
+      (let* ((windows-clipboard 
+              ;; Faster PowerShell syntax
+              (shell-command-to-string "powershell.exe -c 'Get-Clipboard' 2>nul"))
+             (windows-clipboard (replace-regexp-in-string "\r" "" windows-clipboard))
+             (windows-clipboard (if (> (length windows-clipboard) 0)
+                                   (substring windows-clipboard 0 -1)
+                                 ""))
+             (kill-ring-top (if kill-ring (car kill-ring) "")))
+        
+        (if (and (> (length windows-clipboard) 0)
+                 (not (string= windows-clipboard kill-ring-top)))
+            (progn
+              (insert windows-clipboard)
+              (message "Yanked from Windows clipboard"))
+          (if (fboundp 'pt-yank) (pt-yank) (yank))))
+    (if (fboundp 'pt-yank) (pt-yank) (yank))))
+
+;; Enable WSL clipboard integration - use eval-after-load to ensure it overrides other bindings
+(when (and (eq system-type 'gnu/linux)
+           (not (display-graphic-p))
+           (getenv "WSL_DISTRO_NAME"))
+  
+  (global-set-key (kbd "M-w") 'wsl-copy)
+  (global-set-key (kbd "C-w") 'wsl-cut)
+  
+  ;; Force override C-y binding
+  (define-key global-map (kbd "C-y") 'smart-yank)
+  
+  ;; Backup commands
+  (global-set-key (kbd "C-c c") 'wsl-copy)
+  (global-set-key (kbd "C-c v") 'wsl-paste)
+  
+  (message "WSL clipboard integration enabled with smart yank"))
+;; mouse support in terminal
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; TERMINAL MOUSE SUPPORT
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(unless (display-graphic-p)
+  ;; Enable mouse support in terminal
+  (xterm-mouse-mode 1)
+  (global-set-key (kbd "<mouse-4>") 'scroll-down-line)
+  (global-set-key (kbd "<mouse-5>") 'scroll-up-line)
+ 
+  ;; Mouse selection copies to clipboard (WSL only)
+  (when (getenv "WSL_DISTRO_NAME")
+    (defun mouse-copy-selection ()
+      "Copy mouse selection to Windows clipboard."
+      (when (use-region-p)
+        (wsl-copy-region-to-clipboard (region-beginning) (region-end))))
+    
+    (add-hook 'mouse-leave-buffer-hook 'mouse-copy-selection)))
+
+
+(defun mouse-copy-selection ()
+  "Copy mouse selection to Windows clipboard."
+  (when (use-region-p)
+    (wsl-copy-region-to-clipboard (region-beginning) (region-end))))
+
+(add-hook 'mouse-leave-buffer-hook 'mouse-copy-selection)
+
 
 
 ;; Smart buffer indentation with file type awareness
@@ -243,10 +276,10 @@ Skips indentation for certain file types where it might cause issues."
     (yank)
     (indent-region point-before (point))))
 
-(bind-key "C-y" #'pt-yank)
+;;(bind-key "C-y" #'pt-yank)
 (bind-key "C-z" #'undo)
 (bind-key "s-v" #'pt-yank)
-(bind-key "C-Y" #'yank)
+;;(bind-key "C-Y" #'yank)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; 3. OS-SPECIFIC SETTINGS
@@ -422,12 +455,23 @@ Skips indentation for certain file types where it might cause issues."
 (use-package all-the-icons
   :defer t)
 
-(use-package nerd-icons-completion
-  :ensure t
-  :after marginalia
-  :hook (marginalia-mode . nerd-icons-completion-marginalia-setup)
-  :config
-  (nerd-icons-completion-mode 1))
+
+;; (use-package nerd-icons-completion
+;;   :ensure t
+;;   :after marginalia
+;;   :hook (marginalia-mode . nerd-icons-completion-marginalia-setup)
+;;   :config
+;;   ;; Only enable in GUI mode, not in terminal
+;;   (when (display-graphic-p)
+;;     (nerd-icons-completion-mode 1)))
+
+
+;; (use-package nerd-icons-completion
+;;   :ensure t
+;;   :after marginalia
+;;   :hook (marginalia-mode . nerd-icons-completion-marginalia-setup)
+;;   :config
+;;   (nerd-icons-completion-mode 1))
 
 (use-package all-the-icons-completion
   :after (marginalia all-the-icons)
@@ -619,7 +663,7 @@ Skips indentation for certain file types where it might cause issues."
   :ensure t
   :bind (;; Keep standard find-file but enhance it through completion framework
          ("C-x b" . consult-buffer)       ;; Replace switch-to-buffer
-         ("C-s" . consult-line)           ;; Search in current buffer
+         ("C-c s" . consult-line)           ;; Search in current buffer
          ("C-c f f" . consult-find)       ;; Add find as a separate command
          ("C-c f r" . consult-ripgrep))   ;; Add ripgrep search
   :config
