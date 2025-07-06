@@ -296,6 +296,10 @@ Skips indentation for certain file types where it might cause issues."
   (setq mac-command-modifier 'control
         select-enable-clipboard t))
 
+
+;; Resizing Emacs in KDE Plasma isn't nice without this:
+(setq frame-resize-pixelwise t)
+
 ;; Theme setup function
 (defun my/setup-themes ()
   "Set up themes based on display type."
