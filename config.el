@@ -220,6 +220,110 @@
 
 
 
+;; Enhanced comment/uncomment function with multi-language support
+(defun comment-or-uncomment-line-or-region ()
+  "Comments or uncomments the current line or region intelligently.
+Handles different languages including C++, Python, JSON, shell scripts, and R.
+For regions in C-like languages, uses block comments when appropriate."
+  (interactive)
+  (let* ((start (if (region-active-p)
+                    (save-excursion
+                      (goto-char (region-beginning))
+                      (line-beginning-position))
+                  (line-beginning-position)))
+         (end (if (region-active-p)
+                  (save-excursion
+                    (goto-char (region-end))
+                    (line-end-position))
+                (line-end-position)))
+         (use-block-comments (and (region-active-p)
+                                  (> (count-lines start end) 3) ; Only for 4+ lines
+                                  (or (derived-mode-p 'c-mode)
+                                      (derived-mode-p 'c++-mode)
+                                      (derived-mode-p 'java-mode)
+                                      (derived-mode-p 'js-mode)
+                                      (derived-mode-p 'css-mode)))))
+    (cond
+     ;; Block comment case for multi-line C-style languages
+     (use-block-comments
+      (let ((already-commented (save-excursion
+                                 (goto-char start)
+                                 (and (re-search-forward "^[ \t]*/\\*" (line-end-position) t)
+                                      (save-excursion
+                                        (goto-char end)
+                                        (beginning-of-line)
+                                        (re-search-backward "\\*/[ \t]*$" start t))))))
+        (if already-commented
+            ;; Remove block comment
+            (save-excursion
+              ;; Remove opening comment
+              (goto-char start)
+              (when (re-search-forward "^\\([ \t]*\\)/\\*[ \t]*" (line-end-position) t)
+                (replace-match "\\1"))
+              ;; Remove closing comment
+              (goto-char end)
+              (beginning-of-line)
+              (when (re-search-backward "[ \t]*\\*/\\([ \t]*\\)$" start t)
+                (replace-match "\\1")))
+          ;; Add block comment
+          (save-excursion
+            (goto-char end)
+            (end-of-line)
+            (insert " */")
+            (goto-char start)
+            (beginning-of-line)
+            (when (looking-at "\\([ \t]*\\)")
+              (goto-char (match-end 1))
+              (insert "/* "))))))
+
+     ;; JSON mode (which doesn't have built-in comment functionality)
+     ((derived-mode-p 'json-mode)
+      (save-excursion
+        (goto-char start)
+        (while (<= (point) end)
+          (beginning-of-line)
+          (if (looking-at "^[ \t]*//[ \t]*")
+              ;; Remove comment
+              (replace-match (match-string 0) nil nil nil 0)
+            ;; Add comment
+            (when (looking-at "^[ \t]*")
+              (goto-char (match-end 0))
+              (insert "// ")))
+          (forward-line 1)
+          (when (> (point) end) (goto-char (1+ end))))))
+
+     ;; YAML mode (commonly used in data science)
+     ((derived-mode-p 'yaml-mode)
+      (save-excursion
+        (goto-char start)
+        (while (<= (point) end)
+          (beginning-of-line)
+          (if (looking-at "^[ \t]*#[ \t]*")
+              ;; Remove comment
+              (replace-match "" nil nil)
+            ;; Add comment
+            (when (looking-at "^[ \t]*")
+              (goto-char (match-end 0))
+              (insert "# ")))
+          (forward-line 1)
+          (when (> (point) end) (goto-char (1+ end))))))
+
+     ;; R mode (useful for data scientists)
+     ((derived-mode-p 'ess-r-mode)
+      (comment-or-uncomment-region start end))
+
+     ;; Default for all other cases - use the built-in function
+     (t (comment-or-uncomment-region start end)))))
+
+;; Bind to Meta-1 (Alt-1)
+(global-set-key (kbd "M-1") 'comment-or-uncomment-line-or-region)
+
+;; Alternative binding that might be more intuitive
+;;(global-set-key (kbd "C-c /") 'comment-or-uncomment-line-or-region)
+
+
+
+
 ;; Smart buffer indentation with file type awareness
 (defun indent-buffer-smart ()
   "Indent buffer while preserving point and window position.
