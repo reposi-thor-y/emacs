@@ -118,108 +118,6 @@
 (bind-key "C-c e" #'open-init-file)
 
 
-
-;; WSL specifics...
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; WSL CLIPBOARD INTEGRATION
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defun wsl-copy (start end)
-  "Copy region to Windows clipboard AND Emacs kill ring."
-  (interactive "r")
-  (let ((text (buffer-substring-no-properties start end)))
-    (kill-new text)
-    (with-temp-buffer
-      (insert text)
-      (shell-command-on-region (point-min) (point-max) "clip.exe")))
-  (deactivate-mark)
-  (message "Copied to both kill ring and Windows clipboard"))
-
-(defun wsl-paste ()
-  "Paste from Windows clipboard."
-  (interactive)
-  (let ((clipboard (shell-command-to-string "powershell.exe -command 'Get-Clipboard' 2>/dev/null")))
-    (setq clipboard (replace-regexp-in-string "\r" "" clipboard))
-    (when (> (length clipboard) 1)
-      (setq clipboard (substring clipboard 0 -1))
-      (insert clipboard)
-      (message "Pasted from Windows clipboard"))))
-
-(defun wsl-cut (start end)
-  "Cut region to Windows clipboard AND Emacs kill ring."
-  (interactive "r")
-  (wsl-copy start end)
-  (delete-region start end))
-
-(defun smart-yank ()
-  "Yank from Windows clipboard if it's newer, otherwise from kill ring."
-  (interactive)
-  (if (and (getenv "WSL_DISTRO_NAME") (not (display-graphic-p)))
-      (let* ((windows-clipboard 
-              ;; Faster PowerShell syntax
-              (shell-command-to-string "powershell.exe -c 'Get-Clipboard' 2>nul"))
-             (windows-clipboard (replace-regexp-in-string "\r" "" windows-clipboard))
-             (windows-clipboard (if (> (length windows-clipboard) 0)
-                                   (substring windows-clipboard 0 -1)
-                                 ""))
-             (kill-ring-top (if kill-ring (car kill-ring) "")))
-        
-        (if (and (> (length windows-clipboard) 0)
-                 (not (string= windows-clipboard kill-ring-top)))
-            (progn
-              (insert windows-clipboard)
-              (message "Yanked from Windows clipboard"))
-          (if (fboundp 'pt-yank) (pt-yank) (yank))))
-    (if (fboundp 'pt-yank) (pt-yank) (yank))))
-
-;; Enable WSL clipboard integration - use eval-after-load to ensure it overrides other bindings
-(when (and (eq system-type 'gnu/linux)
-           (not (display-graphic-p))
-           (getenv "WSL_DISTRO_NAME"))
-  
-  (global-set-key (kbd "M-w") 'wsl-copy)
-  (global-set-key (kbd "C-w") 'wsl-cut)
-  
-  ;; Force override C-y binding
-  (define-key global-map (kbd "C-y") 'smart-yank)
-  
-  ;; Backup commands
-  (global-set-key (kbd "C-c c") 'wsl-copy)
-  (global-set-key (kbd "C-c v") 'wsl-paste)
-  
-  (message "WSL clipboard integration enabled with smart yank"))
-;; mouse support in terminal
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; TERMINAL MOUSE SUPPORT
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(unless (display-graphic-p)
-  ;; Enable mouse support in terminal
-  (xterm-mouse-mode 1)
-  (global-set-key (kbd "<mouse-4>") 'scroll-down-line)
-  (global-set-key (kbd "<mouse-5>") 'scroll-up-line)
- 
-  ;; Mouse selection copies to clipboard (WSL only)
-  (when (getenv "WSL_DISTRO_NAME")
-    (defun mouse-copy-selection ()
-      "Copy mouse selection to Windows clipboard."
-      (when (use-region-p)
-        (wsl-copy-region-to-clipboard (region-beginning) (region-end))))
-    
-    (add-hook 'mouse-leave-buffer-hook 'mouse-copy-selection)))
-
-
-(defun mouse-copy-selection ()
-  "Copy mouse selection to Windows clipboard."
-  (when (use-region-p)
-    (wsl-copy-region-to-clipboard (region-beginning) (region-end))))
-
-(add-hook 'mouse-leave-buffer-hook 'mouse-copy-selection)
-
-
-
 ;; Enhanced comment/uncomment function with multi-language support
 (defun comment-or-uncomment-line-or-region ()
   "Comments or uncomments the current line or region intelligently.
@@ -317,10 +215,6 @@ For regions in C-like languages, uses block comments when appropriate."
 
 ;; Bind to Meta-1 (Alt-1)
 (global-set-key (kbd "M-1") 'comment-or-uncomment-line-or-region)
-
-;; Alternative binding that might be more intuitive
-;;(global-set-key (kbd "C-c /") 'comment-or-uncomment-line-or-region)
-
 
 
 
@@ -469,7 +363,6 @@ Skips indentation for certain file types where it might cause issues."
 ;; 4. UI & APPEARANCE
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-
 ;; Enable current line highlighting
 (global-hl-line-mode 1)
 
@@ -615,8 +508,254 @@ Skips indentation for certain file types where it might cause issues."
 (setq-default display-fill-column-indicator-column 88)
 (column-number-mode 1)
 
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; 5. GENERAL FUNCTIONALITY
+;; 5. SPELL CHECKING
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; Spell checking configuration for Swedish and English (UK)
+;; Requires hunspell and appropriate dictionaries to be installed
+
+;; Set hunspell as the spell checker
+(when (executable-find "hunspell")
+  (setq ispell-program-name "hunspell")
+  
+  ;; Use simple dictionary names that match your hunspell -D output
+  (setq ispell-dictionary "en_GB-large")
+  
+  ;; Set personal dictionary location
+  (setq ispell-personal-dictionary "~/.local/share/spelling/personal.dic")
+  
+  ;; Create the personal dictionary file if it doesn't exist
+  (unless (file-exists-p ispell-personal-dictionary)
+    (let ((dict-dir (file-name-directory ispell-personal-dictionary)))
+      (unless (file-exists-p dict-dir)
+        (make-directory dict-dir t)))
+    (with-temp-file ispell-personal-dictionary
+      (insert "0\n")))
+  
+  ;; Don't use complex dictionary definitions - let hunspell handle it
+  (setq ispell-local-dictionary-alist nil)
+  
+  ;; Set up hunspell arguments properly
+  (setq ispell-extra-args '("--sug-mode=ultra")))
+
+;; Enable flyspell for text modes
+(add-hook 'text-mode-hook 'flyspell-mode)
+(add-hook 'prog-mode-hook 'flyspell-prog-mode)
+
+;; Language switching functions
+(defun switch-spell-language ()
+  "Switch between English, Swedish, and bilingual spell checking."
+  (interactive)
+  (let ((current ispell-dictionary))
+    (cond
+     ((string= current "en_GB-large")
+      (setq ispell-dictionary "sv_SE")
+      (message "Switched to Swedish"))
+     ((string= current "sv_SE")
+      (setq ispell-dictionary "en_GB-large,sv_SE")
+      (message "Switched to bilingual"))
+     (t
+      (setq ispell-dictionary "en_GB-large")
+      (message "Switched to English"))))
+  ;; Kill and restart ispell process with new dictionary
+  (ispell-kill-ispell)
+  (when flyspell-mode
+    (flyspell-buffer)))
+
+;; Individual language switching functions
+(defun spell-english ()
+  "Switch to English spell checking."
+  (interactive)
+  (setq ispell-dictionary "en_GB-large")
+  (ispell-kill-ispell)
+  (when flyspell-mode (flyspell-buffer))
+  (message "Switched to English spell checking"))
+
+(defun spell-swedish ()
+  "Switch to Swedish spell checking."
+  (interactive)
+  (setq ispell-dictionary "sv_SE")
+  (ispell-kill-ispell)
+  (when flyspell-mode (flyspell-buffer))
+  (message "Switched to Swedish spell checking"))
+
+(defun spell-bilingual ()
+  "Switch to bilingual (English + Swedish) spell checking."
+  (interactive)
+  (setq ispell-dictionary "en_GB-large,sv_SE")
+  (ispell-kill-ispell)
+  (when flyspell-mode (flyspell-buffer))
+  (message "Switched to bilingual spell checking"))
+
+;; Auto-detect language function
+(defun auto-detect-spell-language ()
+  "Automatically set spell checking language based on buffer content."
+  (interactive)
+  (save-excursion
+    (goto-char (point-min))
+    (let ((swedish-indicators '("och" "att" "som" "för" "på" "av" "är" "det" "med" "har" "från" "vid" "till" "då" "över" "så" "här" "där" "när" "bara" "den" "ett" "ska" "skulle" "kan" "kommer" "blir" "blev" "vara" "varit" "under" "mellan" "inom" "utan" "genom" "enligt" "efter" "innan" "sedan" "medan" "därför" "därmed" "alltså" "även" "dock" "redan" "ännu" "kanske" "ibland" "ofta" "aldrig" "alltid" "mycket" "många" "några" "alla" "varje" "denna" "detta" "dessa" "samma" "andra" "första" "andra" "tredje" "svenska" "engelsk" "språk"))
+          (english-indicators '("the" "and" "that" "for" "you" "with" "not" "this" "but" "his" "her" "they" "have" "from" "had" "she" "which" "their" "said" "each" "make" "like" "into" "time" "very" "when" "much" "new" "some" "could" "know" "take" "than" "only" "little" "good" "way" "too" "any" "may" "say" "must" "such" "here" "take" "made" "most" "over" "think" "also" "back" "after" "use" "her" "can" "out" "just" "where" "see" "how" "its" "our" "out" "many" "them" "these" "so" "some" "her" "would" "make" "like" "him" "has" "two" "more" "very" "what" "know" "just" "first" "get" "has" "him" "his" "had" "let" "put" "end" "why" "try" "god" "six" "dog" "eat" "ago" "sit" "fun" "bad" "yes" "yet" "arm" "far" "off" "ill" "egg" "add" "men" "run" "eye" "mrs" "mix" "oil" "sit" "log" "let" "gun" "war" "far" "bus" "oak" "sea" "who" "oil" "its" "sit" "own" "say" "she" "may" "way" "day" "boy" "did" "old" "see" "now" "way" "may" "say" "new" "try" "ask" "men" "old" "see" "him" "two" "how" "its" "who" "oil" "sit" "own" "say" "she" "may" "way" "day" "boy" "did" "old" "see" "now" "way" "may" "say" "new" "try" "ask" "men" "old" "see" "him" "two" "how" "its" "who" "oil" "sit" "own" "say" "she" "may" "way" "day" "boy" "did" "old" "see" "now" "way" "may" "say" "new" "try" "ask" "men" "old" "see" "him" "two" "how" "its" "who" "oil" "sit" "own" "say" "she" "may" "way" "day" "boy"))
+          (swedish-count 0)
+          (english-count 0)
+          (words-checked 0))
+      ;; Count indicators in first 2000 characters
+      (while (and (< (point) (point-max)) (< (point) 2000) (< words-checked 100))
+        (let* ((word-bounds (bounds-of-thing-at-point 'word))
+               (word (when word-bounds
+                      (downcase (buffer-substring-no-properties 
+                                (car word-bounds) (cdr word-bounds))))))
+          (when word
+            (setq words-checked (1+ words-checked))
+            (when (member word swedish-indicators) 
+              (setq swedish-count (1+ swedish-count)))
+            (when (member word english-indicators) 
+              (setq english-count (1+ english-count)))))
+        (forward-word 1))
+      ;; Set dictionary based on detection
+      (cond
+       ((and (> swedish-count 2) (> swedish-count (* english-count 1.5)))
+        (spell-swedish))
+       ((and (> english-count 2) (> english-count (* swedish-count 1.5)))
+        (spell-english))
+       (t
+        (spell-bilingual))))))
+
+
+; Office-suite style binding
+(global-set-key (kbd "<f7>") 'flyspell-buffer)
+
+;; Main spell checking commands
+(global-set-key (kbd "C-c s c") 'flyspell-buffer-with-highlighting)  ; Use enhanced version
+(global-set-key (kbd "C-c s w") 'ispell-word)
+(global-set-key (kbd "C-c s r") 'ispell-region)
+(global-set-key (kbd "C-c s d") 'ispell-change-dictionary)
+(global-set-key (kbd "C-c s n") 'flyspell-goto-next-error)
+
+;; Language switching
+(global-set-key (kbd "C-c s t") 'switch-spell-language)
+(global-set-key (kbd "C-c s a") 'auto-detect-spell-language)
+(global-set-key (kbd "C-c s e") 'spell-english)
+(global-set-key (kbd "C-c s s") 'spell-swedish)
+(global-set-key (kbd "C-c s b") 'spell-bilingual)
+
+;; Debug/test functions
+(global-set-key (kbd "C-c s f") 'flyspell-force-highlight)
+(global-set-key (kbd "C-c s T") 'test-spell-with-highlighting)       ; Use enhanced version
+(global-set-key (kbd "C-c s D") 'debug-flyspell-overlays)
+
+
+;; Mouse binding fix: Use right-click instead of middle-click for flyspell menu
+(eval-after-load "flyspell"
+  '(progn
+     ;; Remove the default middle-click binding
+     (define-key flyspell-mouse-map [down-mouse-2] nil)
+     (define-key flyspell-mouse-map [mouse-2] nil)
+     ;; Add right-click binding for correction menu
+     (define-key flyspell-mouse-map [down-mouse-3] 'flyspell-correct-word)
+     (define-key flyspell-mouse-map [mouse-3] 'flyspell-correct-word)))
+
+;; Test function
+(defun test-spell-simple ()
+  "Create a test buffer with misspelled words."
+  (interactive)
+  (let ((test-buffer (get-buffer-create "*spell-test*")))
+    (with-current-buffer test-buffer
+      (erase-buffer)
+      (insert "This is a tesst of speling chekcing.\n")
+      (insert "Thsi shoudl be highlited in red.\n")
+      (insert "Hej världen och hello world.\n")
+      (text-mode)
+      (flyspell-mode 1)
+      (flyspell-buffer))
+    (switch-to-buffer test-buffer)
+    (message "Test buffer created - misspelled words should be highlighted")))
+
+(global-set-key (kbd "C-c s T") 'test-spell-simple)
+
+
+;; Ensure flyspell faces are properly defined
+(custom-set-faces
+ '(flyspell-incorrect ((t (:underline (:color "red" :style wave)))))
+ '(flyspell-duplicate ((t (:underline (:color "orange" :style wave))))))
+
+;; Force flyspell to use overlays (not just run silently)
+(setq flyspell-use-meta-tab nil)
+(setq flyspell-consider-dash-as-word-delimiter-flag t)
+
+;; Enhanced flyspell-buffer function that ensures highlighting
+(defun flyspell-buffer-with-highlighting ()
+  "Run flyspell-buffer and ensure errors are visually highlighted."
+  (interactive)
+  (flyspell-mode 1)  ; Ensure flyspell-mode is on
+  (flyspell-buffer)
+  (flyspell-overlay-p (point-min))  ; Force overlay check
+  (message "Spell checking complete - errors should be highlighted in red"))
+
+;; Better test function that ensures flyspell-mode is active
+(defun test-spell-with-highlighting ()
+  "Create a test buffer with guaranteed flyspell highlighting."
+  (interactive)
+  (let ((test-buffer (get-buffer-create "*spell-visual-test*")))
+    (with-current-buffer test-buffer
+      (erase-buffer)
+      (insert "This is a tesst of speling chekcing.\n")
+      (insert "Thsi shoudl be highlited in red.\n")
+      (insert "Hej världen och hello world.\n")
+      (text-mode)
+      (flyspell-mode 1)
+      ;; Force flyspell to check and highlight
+      (flyspell-buffer)
+      (goto-char (point-min))
+      ;; Manually trigger highlighting if needed
+      (while (< (point) (point-max))
+        (flyspell-word)
+        (forward-word 1)))
+    (switch-to-buffer test-buffer)
+    (message "Test buffer created - misspelled words should have red underlines")))
+
+;; Debug function to check flyspell overlays
+(defun debug-flyspell-overlays ()
+  "Debug flyspell overlays in current buffer."
+  (interactive)
+  (let ((overlays (overlays-in (point-min) (point-max)))
+        (flyspell-overlays 0))
+    (dolist (overlay overlays)
+      (when (overlay-get overlay 'flyspell-overlay)
+        (setq flyspell-overlays (1+ flyspell-overlays))
+        (message "Flyspell overlay at %d-%d: %s" 
+                 (overlay-start overlay) 
+                 (overlay-end overlay)
+                 (buffer-substring (overlay-start overlay) (overlay-end overlay)))))
+    (message "Total flyspell overlays: %d" flyspell-overlays)))
+
+;; Alternative: Use flyspell-word on each word to force highlighting
+(defun flyspell-force-highlight ()
+  "Force flyspell to highlight all errors by checking each word."
+  (interactive)
+  (save-excursion
+    (goto-char (point-min))
+    (while (< (point) (point-max))
+      (flyspell-word)
+      (forward-word 1)))
+  (message "Force highlighting complete"))
+
+;; Key bindings
+(global-set-key (kbd "C-c s c") 'flyspell-buffer-with-highlighting)
+(global-set-key (kbd "C-c s f") 'flyspell-force-highlight)
+(global-set-key (kbd "C-c s T") 'test-spell-with-highlighting)
+(global-set-key (kbd "C-c s D") 'debug-flyspell-overlays)
+
+;; Hook to ensure flyspell works properly in text mode
+(add-hook 'text-mode-hook 
+          (lambda ()
+            (flyspell-mode 1)
+            (setq flyspell-issue-message-flag nil)))  ; Reduce message noise
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; 6. GENERAL FUNCTIONALITY
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; Indentation settings
@@ -716,7 +855,7 @@ Skips indentation for certain file types where it might cause issues."
   (dired-async-mode 1))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; 6. COMPLETION FRAMEWORK
+;; 7. COMPLETION FRAMEWORK
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; Vertico for vertical completion UI
@@ -767,16 +906,18 @@ Skips indentation for certain file types where it might cause issues."
   (read-buffer-completion-ignore-case t))
 
 ;; Consult for enhanced commands
+
 (use-package consult
   :ensure t
   :bind (;; Keep standard find-file but enhance it through completion framework
          ("C-x b" . consult-buffer)       ;; Replace switch-to-buffer
-         ("C-c s" . consult-line)           ;; Search in current buffer
-         ("C-c f f" . consult-find)       ;; Add find as a separate command
-         ("C-c f r" . consult-ripgrep))   ;; Add ripgrep search
+         ("C-c l" . consult-line)         ;; Search in current buffer
+         ("C-c f d" . consult-find)       ;; Add find as a separate command
+         ("C-c f g" . consult-ripgrep))   ;; Add ripgrep search
   :config
   (setq consult-find-command "find . -type f -not -path \"*/\\.git/*\" -not -path \"*/node_modules/*\" -not -path \"*/build/*\"")
   (setq consult-project-function #'consult--default-project-function))
+
 
 ;; Marginalia for rich annotations
 (use-package marginalia
@@ -829,7 +970,7 @@ Skips indentation for certain file types where it might cause issues."
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; 7. DEVELOPMENT TOOLS
+;; 8. DEVELOPMENT TOOLS
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; Company mode for in-buffer completion
@@ -1010,7 +1151,7 @@ Skips indentation for certain file types where it might cause issues."
     (exec-path-from-shell-initialize)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; 8. LANGUAGE SUPPORT
+;; 9. LANGUAGE SUPPORT
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; Global LSP configuration - used by all language modes
@@ -1096,7 +1237,7 @@ Skips indentation for certain file types where it might cause issues."
 (setq lsp-log-io nil)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; 8.1 PYTHON
+;; 9.1 PYTHON
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
@@ -1314,7 +1455,7 @@ Skips indentation for certain file types where it might cause issues."
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; 8.2 C++
+;; 9.2 C++
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
@@ -1376,8 +1517,8 @@ Skips indentation for certain file types where it might cause issues."
 
 ;; --- Clang Format ---
 (use-package clang-format
-  :bind (("C-c f" . clang-format-buffer)
-         ("C-c r f" . clang-format-region)))
+  :bind (("C-c c f" . clang-format-buffer)
+         ("C-c c r" . clang-format-region)))
 
 ;; LSP configuration for C++ with clangd
 (with-eval-after-load 'lsp-mode
@@ -1400,7 +1541,7 @@ Skips indentation for certain file types where it might cause issues."
 (global-set-key (kbd "C-c C-c") 'compile)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; 8.3 SHELL & ZSH
+;; 9.3 SHELL & ZSH
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; Specialized mode for zsh configuration files
@@ -1443,7 +1584,7 @@ Skips indentation for certain file types where it might cause issues."
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; 8.4 LATEX
+;; 9.4 LATEX
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; Set indentation for LaTeX lists
@@ -1561,19 +1702,19 @@ or 'LaTeX-indent-level-item-continuation' if the latter is bound."
   :hook ((LaTeX-mode . lsp)
          (lsp-mode . lsp-enable-which-key-integration))
   :config
-  (setq lsp-latex-texlab-executable "/home/linuxbrew/.linuxbrew/bin/texlab"
+  (setq lsp-latex-texlab-executable "/usr/bin/texlab"
         lsp-latex-build-on-save t))
 
 ;; Preview equations inline
-(use-package math-preview
-  :defer t
-  :after tex
-  :custom
-  (math-preview-command "/usr/local/sbin/math-preview"))
+;; (use-package math-preview
+;;   :defer t
+;;   :after tex
+;;   :custom
+;;   (math-preview-command "/usr/local/sbin/math-preview"))
 
 ;; Keybinding for error navigation (Swedish keyboard friendly)
 (with-eval-after-load 'tex
-  (define-key TeX-mode-map (kbd "C-c f") 'TeX-next-error))
+  (define-key TeX-mode-map (kbd "C-c n") 'TeX-next-error))
 
 ;; Optional: Set up structure folding
 (add-hook 'LaTeX-mode-hook 'outline-minor-mode)
@@ -1586,7 +1727,7 @@ or 'LaTeX-indent-level-item-continuation' if the latter is bound."
   (add-to-list 'LaTeX-indent-environment-list '("description" LaTeX-indent-item)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; 8.5 MARKDOWN
+;; 9.5 MARKDOWN
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (use-package markdown-mode
@@ -1634,7 +1775,7 @@ or 'LaTeX-indent-level-item-continuation' if the latter is bound."
   :hook (markdown-mode . prettier-js-mode))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; 8.6 OTHER FILE FORMATS
+;; 9.6 OTHER FILE FORMATS
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; Text mode enhancements
@@ -1704,7 +1845,7 @@ or 'LaTeX-indent-level-item-continuation' if the latter is bound."
 ;; Terminal emulation with better zsh support
 (use-package vterm
   :defer t
-  :bind (("C-c t" . vterm))
+  :bind (("C-c v t" . vterm))
   :config
   ;; Better zsh integration
   (setq vterm-shell "/bin/zsh")
@@ -1738,7 +1879,7 @@ or 'LaTeX-indent-level-item-continuation' if the latter is bound."
 
 ;; Key bindings for our zsh integration
 (global-set-key (kbd "C-c z c") 'run-zsh-command)
-(global-set-key (kbd "C-c z n") 'create-zsh-script)
+(global-set-key (kbd "C-c z f") 'create-zsh-script)
 
 ;; Improved directory navigation with zsh
 (defun zsh-find-file ()
@@ -1869,7 +2010,7 @@ or 'LaTeX-indent-level-item-continuation' if the latter is bound."
          (my-jsonc-mode . prettier-mode)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; 9. MISC SETTINGS
+;; 10. MISC SETTINGS
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; These settings enhance the overall Emacs experience
@@ -1897,7 +2038,7 @@ or 'LaTeX-indent-level-item-continuation' if the latter is bound."
 (fset 'yes-or-no-p 'y-or-n-p)                         ; Replace yes/no prompts with y/n
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; 10. FINALIZATION
+;; 11. FINALIZATION
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; Custom file location
