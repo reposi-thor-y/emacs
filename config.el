@@ -109,6 +109,7 @@
 (global-set-key (kbd "C-c a") 'mark-whole-buffer)
 (global-set-key (kbd "C-c i") 'indent-region)
 (unbind-key "C-z") ;; Disable suspend-frame
+(unbind-key "C-x C-z") ;; Disable suspend-frame
 
 ;; Edit config file quickly
 (defun open-init-file ()
@@ -274,10 +275,106 @@ Skips indentation for certain file types where it might cause issues."
     (yank)
     (indent-region point-before (point))))
 
-;;(bind-key "C-y" #'pt-yank)
+(bind-key "C-y" #'pt-yank)
 (bind-key "C-z" #'undo)
 (bind-key "s-v" #'pt-yank)
 ;;(bind-key "C-Y" #'yank)
+
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; 2. TERMINAL MODE
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+;; Enhanced terminal clipboard integration
+(defun my/setup-terminal-clipboard ()
+  "Configure clipboard integration for terminal mode."
+  (unless (display-graphic-p)
+    ;; Enable xterm mouse support in terminal
+    (when (string-match-p "^xterm\\|^screen\\|^tmux" (getenv "TERM"))
+      (xterm-mouse-mode 1))
+    
+    ;; Better clipboard integration for terminal
+    (setq select-enable-clipboard t)
+    (setq select-enable-primary t)
+    
+    ;; Use xclip or wl-clipboard for clipboard integration on Linux
+    (cond
+     ;; For X11 (traditional Linux desktop)
+     ((and (eq system-type 'gnu/linux)
+           (getenv "DISPLAY")
+           (executable-find "xclip"))
+      (setq interprogram-cut-function
+            (lambda (text)
+              (with-temp-buffer
+                (insert text)
+                (call-process-region (point-min) (point-max) "xclip" nil nil nil "-selection" "clipboard"))))
+      (setq interprogram-paste-function
+            (lambda ()
+              (with-temp-buffer
+                (call-process "xclip" nil t nil "-selection" "clipboard" "-o")
+                (when (> (buffer-size) 0)
+                  (buffer-string))))))
+     
+     ;; For Wayland (modern Linux desktop)
+     ((and (eq system-type 'gnu/linux)
+           (getenv "WAYLAND_DISPLAY")
+           (executable-find "wl-copy"))
+      (setq interprogram-cut-function
+            (lambda (text)
+              (with-temp-buffer
+                (insert text)
+                (call-process-region (point-min) (point-max) "wl-copy" nil nil nil))))
+      (setq interprogram-paste-function
+            (lambda ()
+              (with-temp-buffer
+                (call-process "wl-paste" nil t nil)
+                (when (> (buffer-size) 0)
+                  (buffer-string)))))))))
+
+;; Apply terminal setup when not in GUI mode
+(unless (display-graphic-p)
+  (my/setup-terminal-clipboard))
+
+;; Hook for daemon mode - apply when creating terminal frames
+(add-hook 'after-make-frame-functions
+          (lambda (frame)
+            (unless (display-graphic-p frame)
+              (with-selected-frame frame
+                (my/setup-terminal-clipboard)))))
+
+;; Debug function to test clipboard integration
+(defun test-clipboard-integration ()
+  "Test if clipboard integration is working."
+  (interactive)
+  (let ((test-text "Emacs clipboard test"))
+    (kill-new test-text)
+    (message "Copied '%s' to clipboard. Try pasting in another application." test-text)
+    ;; Test paste after a brief delay
+    (run-with-timer 1 nil
+                    (lambda ()
+                      (let ((pasted (current-kill 0)))
+                        (message "Kill ring contains: %s" pasted))))))
+
+;; Bind test function for debugging
+(global-set-key (kbd "C-c t c") 'test-clipboard-integration)
+
+;; Alternative yank function that works better in terminal
+(defun my/terminal-safe-yank ()
+  "Yank function optimized for terminal use."
+  (interactive)
+  (if (display-graphic-p)
+      (pt-yank)  ; Use your custom function in GUI
+    ;; In terminal, use simpler approach
+    (yank)))
+
+
+
+
+
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; 3. OS-SPECIFIC SETTINGS
