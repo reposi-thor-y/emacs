@@ -289,87 +289,124 @@ Skips indentation for certain file types where it might cause issues."
 
 
 ;; Enhanced terminal clipboard integration
-(defun my/setup-terminal-clipboard ()
-  "Configure clipboard integration for terminal mode."
-  (unless (display-graphic-p)
-    ;; Enable xterm mouse support in terminal
-    (when (string-match-p "^xterm\\|^screen\\|^tmux" (getenv "TERM"))
-      (xterm-mouse-mode 1))
-    
-    ;; Better clipboard integration for terminal
-    (setq select-enable-clipboard t)
-    (setq select-enable-primary t)
-    
-    ;; Use xclip or wl-clipboard for clipboard integration on Linux
+
+(defun my/is-ssh-session ()
+  "Detect if we're in an SSH session."
+  (or (getenv "SSH_CLIENT")
+      (getenv "SSH_TTY")
+      (getenv "SSH_CONNECTION")))
+
+(defun my/safe-interprogram-paste ()
+  "Paste from system clipboard, but only if kill ring is empty or explicitly requested."
+  (when (and (not (my/is-ssh-session))  ; Don't use in SSH sessions
+             (not kill-ring))           ; Only if kill ring is empty
     (cond
-     ;; For X11 (traditional Linux desktop)
+     ;; X11 clipboard
      ((and (eq system-type 'gnu/linux)
            (getenv "DISPLAY")
            (executable-find "xclip"))
-      (setq interprogram-cut-function
-            (lambda (text)
-              (with-temp-buffer
-                (insert text)
-                (call-process-region (point-min) (point-max) "xclip" nil nil nil "-selection" "clipboard"))))
-      (setq interprogram-paste-function
-            (lambda ()
-              (with-temp-buffer
-                (call-process "xclip" nil t nil "-selection" "clipboard" "-o")
-                (when (> (buffer-size) 0)
-                  (buffer-string))))))
+      (with-temp-buffer
+        (call-process "xclip" nil t nil "-selection" "clipboard" "-o")
+        (when (> (buffer-size) 0)
+          (buffer-string))))
      
-     ;; For Wayland (modern Linux desktop)
+     ;; Wayland clipboard
      ((and (eq system-type 'gnu/linux)
            (getenv "WAYLAND_DISPLAY")
            (executable-find "wl-copy"))
-      (setq interprogram-cut-function
-            (lambda (text)
-              (with-temp-buffer
-                (insert text)
-                (call-process-region (point-min) (point-max) "wl-copy" nil nil nil))))
-      (setq interprogram-paste-function
-            (lambda ()
-              (with-temp-buffer
-                (call-process "wl-paste" nil t nil)
-                (when (> (buffer-size) 0)
-                  (buffer-string)))))))))
+      (with-temp-buffer
+        (call-process "wl-paste" nil t nil)
+        (when (> (buffer-size) 0)
+          (buffer-string)))))))
 
-;; Apply terminal setup when not in GUI mode
+(defun my/safe-interprogram-cut (text)
+  "Cut to system clipboard, but not in SSH sessions."
+  (unless (my/is-ssh-session)
+    (cond
+     ;; X11 clipboard
+     ((and (eq system-type 'gnu/linux)
+           (getenv "DISPLAY")
+           (executable-find "xclip"))
+      (with-temp-buffer
+        (insert text)
+        (call-process-region (point-min) (point-max) "xclip" nil nil nil "-selection" "clipboard")))
+     
+     ;; Wayland clipboard
+     ((and (eq system-type 'gnu/linux)
+           (getenv "WAYLAND_DISPLAY")
+           (executable-find "wl-copy"))
+      (with-temp-buffer
+        (insert text)
+        (call-process-region (point-min) (point-max) "wl-copy" nil nil nil))))))
+
+(defun my/setup-safe-terminal-clipboard ()
+  "Configure safe clipboard integration for terminal mode."
+  (unless (display-graphic-p)
+    ;; Only enable clipboard integration if not in SSH
+    (unless (my/is-ssh-session)
+      ;; Enable xterm mouse support in terminal
+      (when (string-match-p "^xterm\\|^screen\\|^tmux" (getenv "TERM"))
+        (xterm-mouse-mode 1))
+      
+      ;; Set up clipboard functions
+      (setq interprogram-cut-function #'my/safe-interprogram-cut)
+      (setq interprogram-paste-function #'my/safe-interprogram-paste))
+    
+    ;; Always enable these regardless of SSH status
+    (setq select-enable-clipboard t)
+    (setq select-enable-primary t)))
+
+;; Enhanced yank function that respects kill ring priority
+(defun my/smart-yank ()
+  "Yank from kill ring, with fallback to clipboard only when appropriate."
+  (interactive)
+  (cond
+   ;; If there's something in the kill ring, always use it
+   (kill-ring
+    (if (region-active-p)
+        (pt-yank)  ; Use your custom yank with indentation
+      (yank)))
+   
+   ;; If kill ring is empty and not in SSH, try clipboard
+   ((and (not (my/is-ssh-session))
+         (not (display-graphic-p)))
+    (let ((clipboard-text (my/safe-interprogram-paste)))
+      (if clipboard-text
+          (progn
+            (kill-new clipboard-text)  ; Add to kill ring
+            (yank))
+        (message "Kill ring is empty and no clipboard content available"))))
+   
+   ;; In SSH or GUI mode, just use normal yank
+   (t (yank))))
+
+;; Function to explicitly paste from system clipboard
+(defun paste-from-system-clipboard ()
+  "Explicitly paste from system clipboard."
+  (interactive)
+  (unless (my/is-ssh-session)
+    (let ((clipboard-text (my/safe-interprogram-paste)))
+      (if clipboard-text
+          (progn
+            (when mark-active (call-interactively 'delete-backward-char))
+            (insert clipboard-text)
+            (kill-new clipboard-text))  ; Also add to kill ring for future yanks
+        (message "No clipboard content available")))))
+
+;; Apply terminal setup
 (unless (display-graphic-p)
-  (my/setup-terminal-clipboard))
+  (my/setup-safe-terminal-clipboard))
 
-;; Hook for daemon mode - apply when creating terminal frames
+;; Hook for daemon mode
 (add-hook 'after-make-frame-functions
           (lambda (frame)
             (unless (display-graphic-p frame)
               (with-selected-frame frame
-                (my/setup-terminal-clipboard)))))
+                (my/setup-safe-terminal-clipboard)))))
 
-;; Debug function to test clipboard integration
-(defun test-clipboard-integration ()
-  "Test if clipboard integration is working."
-  (interactive)
-  (let ((test-text "Emacs clipboard test"))
-    (kill-new test-text)
-    (message "Copied '%s' to clipboard. Try pasting in another application." test-text)
-    ;; Test paste after a brief delay
-    (run-with-timer 1 nil
-                    (lambda ()
-                      (let ((pasted (current-kill 0)))
-                        (message "Kill ring contains: %s" pasted))))))
-
-;; Bind test function for debugging
-(global-set-key (kbd "C-c t c") 'test-clipboard-integration)
-
-;; Alternative yank function that works better in terminal
-(defun my/terminal-safe-yank ()
-  "Yank function optimized for terminal use."
-  (interactive)
-  (if (display-graphic-p)
-      (pt-yank)  ; Use your custom function in GUI
-    ;; In terminal, use simpler approach
-    (yank)))
-
+;; Update key bindings
+(bind-key "C-y" #'my/smart-yank)  ; Use smart yank instead of pt-yank
+(bind-key "C-c v" #'paste-from-system-clipboard)  ; Explicit clipboard paste
 
 
 
