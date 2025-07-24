@@ -287,6 +287,131 @@ Skips indentation for certain file types where it might cause issues."
 ;; 2. TERMINAL MODE
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; WAYLAND CLIPBOARD INTEGRATION FOR SSH
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; Function to detect if we're in an SSH session
+(defun my/in-ssh-session-p ()
+  "Check if we're running in an SSH session."
+  (or (getenv "SSH_CLIENT")
+      (getenv "SSH_TTY")
+      (getenv "SSH_CONNECTION")))
+
+;; Function to detect if we're in terminal mode
+(defun my/in-terminal-p ()
+  "Check if we're running in terminal mode."
+  (not (display-graphic-p)))
+
+;; Wayland clipboard functions
+(defun my/wl-copy (text)
+  "Copy TEXT to Wayland clipboard using wl-copy."
+  (when (and text (not (string-empty-p text)))
+    (with-temp-buffer
+      (insert text)
+      (call-process-region (point-min) (point-max) "wl-copy"))))
+
+(defun my/wl-paste ()
+  "Paste from Wayland clipboard using wl-paste."
+  (with-temp-buffer
+    (when (zerop (call-process "wl-paste" nil t nil "--no-newline"))
+      (buffer-string))))
+
+;; OSC 52 escape sequence functions (alternative method)
+(defun my/osc52-copy (text)
+  "Copy TEXT using OSC 52 escape sequences."
+  (when text
+    (let ((encoded (base64-encode-string text t)))
+      (send-string-to-terminal (format "\e]52;c;%s\a" encoded)))))
+
+(defun my/osc52-paste ()
+  "Request paste via OSC 52 (limited terminal support)."
+  ;; OSC 52 paste is not widely supported, so this is mainly a placeholder
+  nil)
+
+;; Smart clipboard integration
+(defun my/setup-clipboard-integration ()
+  "Set up clipboard integration based on environment."
+  (cond
+   ;; SSH session in terminal - try wl-clipboard first, fallback to OSC 52
+   ((and (my/in-ssh-session-p) (my/in-terminal-p))
+    (if (executable-find "wl-copy")
+        (progn
+          (setq interprogram-cut-function #'my/wl-copy)
+          (setq interprogram-paste-function #'my/wl-paste)
+          (message "Using wl-clipboard for SSH session"))
+      (progn
+        (setq interprogram-cut-function #'my/osc52-copy)
+        (setq interprogram-paste-function #'my/osc52-paste)
+        (message "Using OSC 52 for SSH session"))))
+   
+   ;; Terminal mode but not SSH - use wl-clipboard if available
+   ((my/in-terminal-p)
+    (when (executable-find "wl-copy")
+      (setq interprogram-cut-function #'my/wl-copy)
+      (setq interprogram-paste-function #'my/wl-paste)
+      (message "Using wl-clipboard for terminal session")))
+   
+   ;; GUI mode - use default clipboard integration
+   (t
+    (setq select-enable-clipboard t)
+    (setq select-enable-primary t))))
+
+;; Enhanced yank that works with our clipboard integration
+(defun my/enhanced-yank ()
+  "Call yank with clipboard integration, then indent the pasted region."
+  (interactive)
+  (let ((point-before (point)))
+    (when mark-active (call-interactively 'delete-backward-char))
+    
+    ;; Try to get text from system clipboard first if available
+    (let ((clipboard-text (and interprogram-paste-function
+                               (funcall interprogram-paste-function))))
+      (if (and clipboard-text (not (string-empty-p clipboard-text)))
+          (insert clipboard-text)
+        (yank)))
+    
+    ;; Indent the pasted region (preserving your existing behavior)
+    (indent-region point-before (point))))
+
+;; Alternative function that forces clipboard paste
+(defun my/paste-from-clipboard ()
+  "Force paste from system clipboard."
+  (interactive)
+  (let ((clipboard-text (and interprogram-paste-function
+                             (funcall interprogram-paste-function))))
+    (if (and clipboard-text (not (string-empty-p clipboard-text)))
+        (let ((point-before (point)))
+          (when mark-active (call-interactively 'delete-backward-char))
+          (insert clipboard-text)
+          (indent-region point-before (point)))
+      (message "No text in system clipboard"))))
+
+;; Initialize clipboard integration
+(my/setup-clipboard-integration)
+
+;; Update your existing keybindings
+;; Replace your existing pt-yank binding with the enhanced version
+(bind-key "C-y" #'my/enhanced-yank)
+
+;; Add additional keybindings for explicit clipboard operations
+(global-set-key (kbd "C-c C-v") #'my/paste-from-clipboard)  ; Force clipboard paste
+(global-set-key (kbd "C-c C-y") #'yank)                     ; Original yank (from kill ring)
+
+;; Debug function to test clipboard
+(defun my/test-clipboard ()
+  "Test clipboard integration."
+  (interactive)
+  (let ((test-text "Test clipboard integration"))
+    (when interprogram-cut-function
+      (funcall interprogram-cut-function test-text)
+      (message "Copied test text to clipboard"))
+    (sit-for 1)
+    (when interprogram-paste-function
+      (let ((pasted (funcall interprogram-paste-function)))
+        (message "Pasted from clipboard: %s" (or pasted "Nothing"))))))
+
+(global-set-key (kbd "C-c t c") #'my/test-clipboard)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; 3. OS-SPECIFIC SETTINGS
