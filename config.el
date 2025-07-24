@@ -288,225 +288,181 @@ Skips indentation for certain file types where it might cause issues."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
+;; Add this to your config.el - Practical SSH Clipboard Solution
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; WAYLAND CLIPBOARD INTEGRATION FOR SSH
+;; SSH CLIPBOARD INTEGRATION (WORKING VERSION)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; Function to detect if we're in an SSH session
+;; Detection functions
 (defun my/in-ssh-session-p ()
   "Check if we're running in an SSH session."
   (or (getenv "SSH_CLIENT")
       (getenv "SSH_TTY")
       (getenv "SSH_CONNECTION")))
 
-;; Function to detect if we're in terminal mode
-(defun my/in-terminal-p ()
-  "Check if we're running in terminal mode."
-  (not (display-graphic-p)))
-
-;; SSH clipboard bridge functions
-(defun my/ssh-clipboard-copy (text)
-  "Copy TEXT to local clipboard via SSH connection."
-  (when (and text (not (string-empty-p text)))
-    (let ((ssh-client (getenv "SSH_CLIENT")))
-      (when ssh-client
-        ;; Extract the client IP from SSH_CLIENT (format: "client_ip client_port server_port")
-        (let* ((client-info (split-string ssh-client))
-               (client-ip (car client-info)))
-          ;; Try to copy using ssh back to the client
-          ;; This assumes you can SSH back to your local machine
-          (with-temp-buffer
-            (insert text)
-            ;; Use OSC 52 escape sequence as primary method
-            (let ((encoded (base64-encode-string text t)))
-              (send-string-to-terminal (format "\e]52;c;%s\a" encoded)))))))))
-
-;; OSC 52 clipboard functions (more reliable for SSH)
+;; OSC 52 copy function (this works reliably)
 (defun my/osc52-copy (text)
-  "Copy TEXT using OSC 52 escape sequences."
+  "Copy TEXT to local clipboard using OSC 52 escape sequence."
   (when (and text (not (string-empty-p text)))
     (let ((encoded (base64-encode-string text t)))
-      ;; Send OSC 52 sequence
       (send-string-to-terminal (format "\e]52;c;%s\a" encoded))
-      (message "Copied to clipboard via OSC 52"))))
+      ;; Also save to a temp file as backup
+      (ignore-errors
+        (with-temp-file "/tmp/emacs-clipboard"
+          (insert text)))
+      (message "Copied to system clipboard via OSC 52"))))
 
-;; Terminal clipboard integration using ANSI escape sequences
-(defun my/terminal-copy (text)
-  "Copy text using terminal-specific methods."
+;; File-based clipboard bridge
+(defun my/file-clipboard-copy (text)
+  "Copy text via file bridge method."
   (when (and text (not (string-empty-p text)))
-    (cond
-     ;; Try OSC 52 first (most compatible)
-     ((my/in-terminal-p)
-      (my/osc52-copy text))
-     ;; Fallback: try to write to a temp file that could be monitored
-     (t
-      (with-temp-file "/tmp/emacs-clipboard"
-        (insert text))
-      (message "Text saved to /tmp/emacs-clipboard")))))
+    (with-temp-file "/tmp/emacs-clipboard"
+      (insert text))
+    (message "Text copied to /tmp/emacs-clipboard")))
 
-;; Enhanced paste function that tries multiple methods
-(defun my/smart-paste ()
-  "Try to paste from system clipboard using multiple methods."
-  (or
-   ;; Method 1: Try OSC 52 paste (limited support)
-   (my/osc52-paste)
-   ;; Method 2: Try reading from temp file
-   (my/temp-file-paste)
-   ;; Method 3: Return nil so yank falls back to kill ring
-   nil))
-
-(defun my/osc52-paste ()
-  "Request paste via OSC 52 (limited terminal support)."
-  ;; OSC 52 paste requests are not widely supported
-  ;; Most terminals don't implement the paste part
-  nil)
-
-(defun my/temp-file-paste ()
-  "Try to read from temporary clipboard file."
+(defun my/file-clipboard-paste ()
+  "Paste from file bridge."
   (when (file-exists-p "/tmp/emacs-clipboard")
-    (with-temp-buffer
-      (insert-file-contents "/tmp/emacs-clipboard")
-      (buffer-string))))
+    (condition-case nil
+        (with-temp-buffer
+          (insert-file-contents "/tmp/emacs-clipboard")
+          (buffer-string))
+      (error nil))))
 
-;; Setup function that chooses the best method
-(defun my/setup-clipboard-integration ()
-  "Set up clipboard integration based on environment."
-  (cond
-   ;; SSH session in terminal
-   ((and (my/in-ssh-session-p) (my/in-terminal-p))
-    (setq interprogram-cut-function #'my/terminal-copy)
-    (setq interprogram-paste-function #'my/smart-paste)
-    (message "Clipboard: Using terminal methods for SSH session"))
-   
-   ;; Local terminal
-   ((my/in-terminal-p)
-    (if (executable-find "wl-copy")
-        (progn
-          (setq interprogram-cut-function 
-                (lambda (text &optional push)
-                  (when text
-                    (with-temp-buffer
-                      (insert text)
-                      (call-process-region (point-min) (point-max) "wl-copy")))))
-          (setq interprogram-paste-function
-                (lambda ()
-                  (with-temp-buffer
-                    (when (zerop (call-process "wl-paste" nil t nil "--no-newline"))
-                      (buffer-string)))))
-          (message "Clipboard: Using wl-clipboard"))
-      (my/setup-osc52-only)))
-   
-   ;; GUI mode
-   (t
-    (setq select-enable-clipboard t)
-    (setq select-enable-primary t)
-    (message "Clipboard: Using GUI clipboard"))))
-
-(defun my/setup-osc52-only ()
-  "Setup OSC 52 only clipboard integration."
-  (setq interprogram-cut-function #'my/osc52-copy)
-  (setq interprogram-paste-function nil) ; OSC 52 paste not reliable
-  (message "Clipboard: Using OSC 52 escape sequences"))
-
-;; Your enhanced yank function (preserving your indenting behavior)
-(defun my/enhanced-yank ()
-  "Yank with indenting, trying clipboard first if available."
+;; Enhanced yank that's more forgiving
+(defun my/enhanced-yank-with-fallback ()
+  "Yank with multiple fallback options."
   (interactive)
   (let ((point-before (point))
-        (clipboard-text nil))
+        (pasted-something nil))
     
     ;; Delete selection if active
     (when mark-active (call-interactively 'delete-backward-char))
     
-    ;; Try clipboard first, then fall back to kill ring
-    (condition-case err
-        (progn
-          (when interprogram-paste-function
-            (setq clipboard-text (funcall interprogram-paste-function)))
-          
-          (if (and clipboard-text (not (string-empty-p clipboard-text)))
-              (progn
-                (insert clipboard-text)
-                (message "Pasted from system clipboard"))
-            ;; Fall back to regular yank
-            (yank)
-            (message "Yanked from kill ring")))
-      (error 
-       ;; If everything fails, try regular yank
-       (condition-case err2
-           (progn
-             (yank)
-             (message "Yanked from kill ring"))
-         (error
-          (message "Kill ring is empty and no clipboard content available")))))
+    ;; Try multiple paste methods in order
+    (let ((content 
+           (or 
+            ;; 1. Try file-based clipboard
+            (my/file-clipboard-paste)
+            ;; 2. Try kill ring if not empty
+            (and (not (eq (car kill-ring) nil))
+                 (car kill-ring))
+            ;; 3. Give up
+            nil)))
+      
+      (if content
+          (progn
+            (insert content)
+            (setq pasted-something t)
+            (message "Pasted content"))
+        (message "No content available to paste")))
     
-    ;; Indent the pasted region (your original behavior)
-    (when (> (point) point-before)
+    ;; Indent if we pasted something (preserving your behavior)
+    (when (and pasted-something (> (point) point-before))
       (indent-region point-before (point)))))
 
-;; Function to copy current selection to clipboard
-(defun my/copy-to-clipboard ()
-  "Copy current region to system clipboard."
+;; Simple copy function that always works
+(defun my/copy-region-to-clipboard ()
+  "Copy current region to clipboard using available methods."
   (interactive)
   (if (region-active-p)
       (let ((text (buffer-substring-no-properties (region-beginning) (region-end))))
-        (when interprogram-cut-function
-          (funcall interprogram-cut-function text))
-        (kill-new text) ; Also add to kill ring
-        (message "Copied to clipboard and kill ring"))
+        ;; Copy to kill ring first (always works)
+        (kill-new text)
+        
+        ;; Try to copy to system clipboard
+        (cond
+         ((my/in-ssh-session-p)
+          ;; SSH: Use OSC 52 and file backup
+          (my/osc52-copy text)
+          (my/file-clipboard-copy text))
+         ((executable-find "wl-copy")
+          ;; Local: Use wl-copy
+          (with-temp-buffer
+            (insert text)
+            (call-process-region (point-min) (point-max) "wl-copy"))
+          (message "Copied to Wayland clipboard"))
+         (t
+          ;; Fallback: just file method
+          (my/file-clipboard-copy text)))
+        
+        (message "Copied %d characters" (length text)))
     (message "No region selected")))
 
-;; Debug function
-(defun my/debug-clipboard ()
-  "Debug clipboard integration."
+;; Manual clipboard paste (for testing)
+(defun my/paste-from-system-clipboard ()
+  "Manually paste from system clipboard."
   (interactive)
-  (message "SSH session: %s" (my/in-ssh-session-p))
-  (message "Terminal mode: %s" (my/in-terminal-p))
-  (message "Cut function: %s" interprogram-cut-function)
-  (message "Paste function: %s" interprogram-paste-function)
-  (message "TERM: %s" (getenv "TERM"))
-  (message "SSH_CLIENT: %s" (getenv "SSH_CLIENT")))
+  (let ((content
+         (cond
+          ;; Try file method first
+          ((file-exists-p "/tmp/emacs-clipboard")
+           (my/file-clipboard-paste))
+          ;; Try wl-paste if local
+          ((and (not (my/in-ssh-session-p)) (executable-find "wl-paste"))
+           (with-temp-buffer
+             (when (zerop (call-process "wl-paste" nil t nil "--no-newline"))
+               (buffer-string))))
+          (t nil))))
+    
+    (if content
+        (let ((point-before (point)))
+          (when mark-active (call-interactively 'delete-backward-char))
+          (insert content)
+          (indent-region point-before (point))
+          (message "Pasted from system clipboard"))
+      (message "No system clipboard content available"))))
 
-;; Test function
-(defun my/test-clipboard ()
-  "Test clipboard functionality."
+;; Test functions
+(defun my/test-copy-paste ()
+  "Test the copy/paste functionality."
   (interactive)
-  (let ((test-text "Test clipboard - Hello from Emacs!"))
-    ;; Copy test text
-    (when interprogram-cut-function
-      (funcall interprogram-cut-function test-text)
-      (message "Sent test text to clipboard"))
+  (let ((test-text "Hello from Emacs! This is a test."))
+    ;; Put test text in kill ring
+    (kill-new test-text)
+    (message "Added test text to kill ring")
     
-    ;; Wait a moment
-    (sit-for 1)
+    ;; Also try copying to system clipboard
+    (my/osc52-copy test-text)
+    (my/file-clipboard-copy test-text)
     
-    ;; Try to paste it back
-    (when interprogram-paste-function
-      (let ((result (funcall interprogram-paste-function)))
-        (if result
-            (message "Success! Got back: %s" result)
-          (message "Paste function returned nil"))))
-    
-    ;; Also test temp file method
-    (when (file-exists-p "/tmp/emacs-clipboard")
-      (message "Temp file exists with: %s" 
-               (with-temp-buffer
-                 (insert-file-contents "/tmp/emacs-clipboard")
-                 (buffer-string))))))
+    (message "Test complete. Try C-y to paste")))
 
-;; Initialize
-(my/setup-clipboard-integration)
+(defun my/check-clipboard-status ()
+  "Check what clipboard methods are available."
+  (interactive)
+  (message "=== Clipboard Status ===")
+  (message "SSH session: %s" (if (my/in-ssh-session-p) "YES" "NO"))
+  (message "Kill ring empty: %s" (if kill-ring "NO" "YES"))
+  (message "Kill ring top: %s" (if kill-ring (substring (car kill-ring) 0 (min 50 (length (car kill-ring)))) "empty"))
+  (message "Temp file exists: %s" (if (file-exists-p "/tmp/emacs-clipboard") "YES" "NO"))
+  (when (file-exists-p "/tmp/emacs-clipboard")
+    (let ((content (my/file-clipboard-paste)))
+      (message "Temp file content: %s" (if content (substring content 0 (min 50 (length content))) "empty"))))
+  (message "wl-copy available: %s" (if (executable-find "wl-copy") "YES" "NO"))
+  (message "TERM: %s" (getenv "TERM")))
 
-;; Keybindings
-(bind-key "C-y" #'my/enhanced-yank)
-(global-set-key (kbd "C-c c c") #'my/copy-to-clipboard)
-(global-set-key (kbd "C-c c v") #'my/enhanced-yank)
-(global-set-key (kbd "C-c c d") #'my/debug-clipboard)
-(global-set-key (kbd "C-c c t") #'my/test-clipboard)
+;; Set up the keybindings
+(bind-key "C-y" #'my/enhanced-yank-with-fallback)
+(global-set-key (kbd "C-c c") #'my/copy-region-to-clipboard)  ; Copy selection
+(global-set-key (kbd "C-c v") #'my/paste-from-system-clipboard)  ; Force system paste
+(global-set-key (kbd "C-c C-y") #'yank)  ; Original yank
+(global-set-key (kbd "C-c t") #'my/test-copy-paste)  ; Test function
+(global-set-key (kbd "C-c s") #'my/check-clipboard-status)  ; Status check
 
-;; Keep your original yank available
-(global-set-key (kbd "C-c y") #'yank)
+;; Advice to make kill-new also copy to system clipboard
+(defun my/kill-new-advice (orig-fun string &optional replace)
+  "Advice to also copy to system clipboard when adding to kill ring."
+  (let ((result (funcall orig-fun string replace)))
+    ;; Also try to copy to system clipboard
+    (when (and string (my/in-ssh-session-p))
+      (my/osc52-copy string))
+    result))
 
+(advice-add 'kill-new :around #'my/kill-new-advice)
+
+(message "SSH Clipboard integration loaded. Use C-c s to check status, C-c t to test")
 
 
 
