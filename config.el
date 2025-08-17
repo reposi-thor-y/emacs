@@ -266,206 +266,7 @@ Skips indentation for certain file types where it might cause issues."
 (global-set-key (kbd "M-2") 'indent-buffer-smart)
 
 
-;; Enhanced yank that indents pasted code
-(defun pt-yank ()
-  "Call yank, then indent the pasted region, as TextMate does."
-  (interactive)
-  (let ((point-before (point)))
-    (when mark-active (call-interactively 'delete-backward-char))
-    (yank)
-    (indent-region point-before (point))))
-
-(bind-key "C-y" #'pt-yank)
 (bind-key "C-z" #'undo)
-(bind-key "s-v" #'pt-yank)
-;;(bind-key "C-Y" #'yank)
-
-
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; 3. TERMINAL MODE
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-
-;; Add this to your config.el - Practical SSH Clipboard Solution
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; SSH CLIPBOARD INTEGRATION (WORKING VERSION)
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-;; Detection functions
-(defun my/in-ssh-session-p ()
-  "Check if we're running in an SSH session."
-  (or (getenv "SSH_CLIENT")
-      (getenv "SSH_TTY")
-      (getenv "SSH_CONNECTION")))
-
-;; OSC 52 copy function (this works reliably)
-(defun my/osc52-copy (text)
-  "Copy TEXT to local clipboard using OSC 52 escape sequence."
-  (when (and text (not (string-empty-p text)))
-    (let ((encoded (base64-encode-string text t)))
-      (send-string-to-terminal (format "\e]52;c;%s\a" encoded))
-      ;; Also save to a temp file as backup
-      (ignore-errors
-        (with-temp-file "/tmp/emacs-clipboard"
-          (insert text)))
-      (message "Copied to system clipboard via OSC 52"))))
-
-;; File-based clipboard bridge
-(defun my/file-clipboard-copy (text)
-  "Copy text via file bridge method."
-  (when (and text (not (string-empty-p text)))
-    (with-temp-file "/tmp/emacs-clipboard"
-      (insert text))
-    (message "Text copied to /tmp/emacs-clipboard")))
-
-(defun my/file-clipboard-paste ()
-  "Paste from file bridge."
-  (when (file-exists-p "/tmp/emacs-clipboard")
-    (condition-case nil
-        (with-temp-buffer
-          (insert-file-contents "/tmp/emacs-clipboard")
-          (buffer-string))
-      (error nil))))
-
-;; Enhanced yank that's more forgiving
-(defun my/enhanced-yank-with-fallback ()
-  "Yank with multiple fallback options."
-  (interactive)
-  (let ((point-before (point))
-        (pasted-something nil))
-    
-    ;; Delete selection if active
-    (when mark-active (call-interactively 'delete-backward-char))
-    
-    ;; Try multiple paste methods in order
-    (let ((content 
-           (or 
-            ;; 1. Try file-based clipboard
-            (my/file-clipboard-paste)
-            ;; 2. Try kill ring if not empty
-            (and (not (eq (car kill-ring) nil))
-                 (car kill-ring))
-            ;; 3. Give up
-            nil)))
-      
-      (if content
-          (progn
-            (insert content)
-            (setq pasted-something t)
-            (message "Pasted content"))
-        (message "No content available to paste")))
-    
-    ;; Indent if we pasted something (preserving your behavior)
-    (when (and pasted-something (> (point) point-before))
-      (indent-region point-before (point)))))
-
-;; Simple copy function that always works
-(defun my/copy-region-to-clipboard ()
-  "Copy current region to clipboard using available methods."
-  (interactive)
-  (if (region-active-p)
-      (let ((text (buffer-substring-no-properties (region-beginning) (region-end))))
-        ;; Copy to kill ring first (always works)
-        (kill-new text)
-        
-        ;; Try to copy to system clipboard
-        (cond
-         ((my/in-ssh-session-p)
-          ;; SSH: Use OSC 52 and file backup
-          (my/osc52-copy text)
-          (my/file-clipboard-copy text))
-         ((executable-find "wl-copy")
-          ;; Local: Use wl-copy
-          (with-temp-buffer
-            (insert text)
-            (call-process-region (point-min) (point-max) "wl-copy"))
-          (message "Copied to Wayland clipboard"))
-         (t
-          ;; Fallback: just file method
-          (my/file-clipboard-copy text)))
-        
-        (message "Copied %d characters" (length text)))
-    (message "No region selected")))
-
-;; Manual clipboard paste (for testing)
-(defun my/paste-from-system-clipboard ()
-  "Manually paste from system clipboard."
-  (interactive)
-  (let ((content
-         (cond
-          ;; Try file method first
-          ((file-exists-p "/tmp/emacs-clipboard")
-           (my/file-clipboard-paste))
-          ;; Try wl-paste if local
-          ((and (not (my/in-ssh-session-p)) (executable-find "wl-paste"))
-           (with-temp-buffer
-             (when (zerop (call-process "wl-paste" nil t nil "--no-newline"))
-               (buffer-string))))
-          (t nil))))
-    
-    (if content
-        (let ((point-before (point)))
-          (when mark-active (call-interactively 'delete-backward-char))
-          (insert content)
-          (indent-region point-before (point))
-          (message "Pasted from system clipboard"))
-      (message "No system clipboard content available"))))
-
-;; Test functions
-(defun my/test-copy-paste ()
-  "Test the copy/paste functionality."
-  (interactive)
-  (let ((test-text "Hello from Emacs! This is a test."))
-    ;; Put test text in kill ring
-    (kill-new test-text)
-    (message "Added test text to kill ring")
-    
-    ;; Also try copying to system clipboard
-    (my/osc52-copy test-text)
-    (my/file-clipboard-copy test-text)
-    
-    (message "Test complete. Try C-y to paste")))
-
-(defun my/check-clipboard-status ()
-  "Check what clipboard methods are available."
-  (interactive)
-  (message "=== Clipboard Status ===")
-  (message "SSH session: %s" (if (my/in-ssh-session-p) "YES" "NO"))
-  (message "Kill ring empty: %s" (if kill-ring "NO" "YES"))
-  (message "Kill ring top: %s" (if kill-ring (substring (car kill-ring) 0 (min 50 (length (car kill-ring)))) "empty"))
-  (message "Temp file exists: %s" (if (file-exists-p "/tmp/emacs-clipboard") "YES" "NO"))
-  (when (file-exists-p "/tmp/emacs-clipboard")
-    (let ((content (my/file-clipboard-paste)))
-      (message "Temp file content: %s" (if content (substring content 0 (min 50 (length content))) "empty"))))
-  (message "wl-copy available: %s" (if (executable-find "wl-copy") "YES" "NO"))
-  (message "TERM: %s" (getenv "TERM")))
-
-;; Set up the keybindings
-(bind-key "C-y" #'my/enhanced-yank-with-fallback)
-(global-set-key (kbd "C-c c") #'my/copy-region-to-clipboard)  ; Copy selection
-(global-set-key (kbd "C-c v") #'my/paste-from-system-clipboard)  ; Force system paste
-(global-set-key (kbd "C-c C-y") #'yank)  ; Original yank
-(global-set-key (kbd "C-c t") #'my/test-copy-paste)  ; Test function
-(global-set-key (kbd "C-c s") #'my/check-clipboard-status)  ; Status check
-
-;; Advice to make kill-new also copy to system clipboard
-(defun my/kill-new-advice (orig-fun string &optional replace)
-  "Advice to also copy to system clipboard when adding to kill ring."
-  (let ((result (funcall orig-fun string replace)))
-    ;; Also try to copy to system clipboard
-    (when (and string (my/in-ssh-session-p))
-      (my/osc52-copy string))
-    result))
-
-(advice-add 'kill-new :around #'my/kill-new-advice)
-
-(message "SSH Clipboard integration loaded. Use C-c s to check status, C-c t to test")
-
-
-
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -478,10 +279,10 @@ Skips indentation for certain file types where it might cause issues."
 (defvar xdg-config (getenv "XDG_CONFIG_HOME"))
 
 ;; macOS specific settings
-(when (eq system-type 'darwin)
-  (setq mac-right-option-modifier 'nil)
-  (setq mac-command-modifier 'control
-        select-enable-clipboard t))
+;; (when (eq system-type 'darwin)
+;;   (setq mac-right-option-modifier 'nil)
+;;   (setq mac-command-modifier 'control
+;;         select-enable-clipboard t))
 
 
 ;; Resizing Emacs in KDE Plasma isn't nice without this:
@@ -548,7 +349,7 @@ Skips indentation for certain file types where it might cause issues."
               (my/setup-themes)
               (my/setup-system-gui))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 ;; 4. UI & APPEARANCE
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -1425,222 +1226,222 @@ Skips indentation for certain file types where it might cause issues."
 ;; Turn off LSP debugging (was previously enabled)
 (setq lsp-log-io nil)
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; 9.1 PYTHON
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; ;; 9.1 PYTHON
+;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-;;; 1. Basic Python settings
-;; Set indentation level
-(setq python-indent-offset 4)
+;; ;;; 1. Basic Python settings
+;; ;; Set indentation level
+;; (setq python-indent-offset 4)
 
-;;; 2. Python Environment Management (pyenv)
-(use-package pyenv-mode
-  :defer t
-  :init
-  (add-to-list 'exec-path "~/.pyenv/shims")
-  :config
-  (pyenv-mode)
-  (when (executable-find "pyenv")
-    (setenv "PYENV_ROOT" (replace-regexp-in-string "\n" "" (shell-command-to-string "pyenv root")))
-    (add-to-list 'exec-path (concat (getenv "PYENV_ROOT") "/shims")))
-  :hook (python-mode . pyenv-mode)
-  :bind ("C-c C-s" . pyenv-mode-set))
+;; ;;; 2. Python Environment Management (pyenv)
+;; (use-package pyenv-mode
+;;   :defer t
+;;   :init
+;;   (add-to-list 'exec-path "~/.pyenv/shims")
+;;   :config
+;;   (pyenv-mode)
+;;   (when (executable-find "pyenv")
+;;     (setenv "PYENV_ROOT" (replace-regexp-in-string "\n" "" (shell-command-to-string "pyenv root")))
+;;     (add-to-list 'exec-path (concat (getenv "PYENV_ROOT") "/shims")))
+;;   :hook (python-mode . pyenv-mode)
+;;   :bind ("C-c C-s" . pyenv-mode-set))
 
-;;; 3. Python Linting with flake8
-;; Define flake8 as a Python syntax checker in Flycheck
-(with-eval-after-load 'flycheck
-  (setq flycheck-python-flake8-executable "flake8")
+;; ;;; 3. Python Linting with flake8
+;; ;; Define flake8 as a Python syntax checker in Flycheck
+;; (with-eval-after-load 'flycheck
+;;   (setq flycheck-python-flake8-executable "flake8")
 
-  ;; Configure flake8 options
-  (setq flycheck-flake8rc ".flake8")  ;; Use .flake8 config file if present
-  (setq flycheck-flake8-maximum-line-length 88)  ;; Match Black's default line length
+;;   ;; Configure flake8 options
+;;   (setq flycheck-flake8rc ".flake8")  ;; Use .flake8 config file if present
+;;   (setq flycheck-flake8-maximum-line-length 88)  ;; Match Black's default line length
 
-  ;; Prioritize flake8 for Python
-  (flycheck-add-next-checker 'python-flake8 'python-pylint t))
+;;   ;; Prioritize flake8 for Python
+;;   (flycheck-add-next-checker 'python-flake8 'python-pylint t))
 
-;; Enable flycheck in Python mode
-(add-hook 'python-mode-hook 'flycheck-mode)
+;; ;; Enable flycheck in Python mode
+;; (add-hook 'python-mode-hook 'flycheck-mode)
 
-;;; 4. Python LSP Configuration
-(with-eval-after-load 'lsp-mode
-  ;; Python LSP settings
-  (setq lsp-pylsp-plugins-flake8-enabled t)  ;; Enable flake8
-  (setq lsp-pylsp-plugins-flake8-max-line-length 88)  ;; Match Black's default
+;; ;;; 4. Python LSP Configuration
+;; (with-eval-after-load 'lsp-mode
+;;   ;; Python LSP settings
+;;   (setq lsp-pylsp-plugins-flake8-enabled t)  ;; Enable flake8
+;;   (setq lsp-pylsp-plugins-flake8-max-line-length 88)  ;; Match Black's default
 
-  ;; Disable tools we're not using
-  (setq lsp-pylsp-plugins-pycodestyle-enabled nil)
-  (setq lsp-pylsp-plugins-mccabe-enabled nil)
+;;   ;; Disable tools we're not using
+;;   (setq lsp-pylsp-plugins-pycodestyle-enabled nil)
+;;   (setq lsp-pylsp-plugins-mccabe-enabled nil)
 
-  ;; Ensure we're only using a single LSP server (pylsp)
-  (setq lsp-pylsp-server-command "pylsp")
-  (setq lsp-clients-pylsp-library-directories '("/usr"))
+;;   ;; Ensure we're only using a single LSP server (pylsp)
+;;   (setq lsp-pylsp-server-command "pylsp")
+;;   (setq lsp-clients-pylsp-library-directories '("/usr"))
 
-  ;; Configure server for Python
-  (lsp-register-custom-settings
-   '(("pylsp.plugins.flake8.maxLineLength" 88 t)
-     ("pylsp.plugins.pyflakes.enabled" t t)
-     ("pylsp.plugins.black.enabled" t t)
-     ("pylsp.plugins.isort.enabled" t t))))
+;;   ;; Configure server for Python
+;;   (lsp-register-custom-settings
+;;    '(("pylsp.plugins.flake8.maxLineLength" 88 t)
+;;      ("pylsp.plugins.pyflakes.enabled" t t)
+;;      ("pylsp.plugins.black.enabled" t t)
+;;      ("pylsp.plugins.isort.enabled" t t))))
 
-;; Virtual env support
-(defun my/setup-python-lsp ()
-  "Set up Python LSP environment with current pyenv."
-  (interactive)
-  ;; Skip the auto-detection of pyenv versions - this was causing the error
-
-  ;; Just use the current Python executable, whatever it might be
-  (let ((python-executable (executable-find "python")))
-    ;; Update Python executable for LSP
-    (when python-executable
-      (setq-local lsp-pylsp-server-command python-executable))
-
-    ;; Log info for debugging
-    (message "Using Python: %s" python-executable)))
-
-;; Add hook to setup Python LSP environment
-(add-hook 'python-mode-hook #'my/setup-python-lsp)
-
-;; ;;; 5. Format on Save with Black and isort
-;; (defun my/format-python-with-black ()
-;;   "Format the current buffer with Black."
+;; ;; Virtual env support
+;; (defun my/setup-python-lsp ()
+;;   "Set up Python LSP environment with current pyenv."
 ;;   (interactive)
-;;   (when (derived-mode-p 'python-mode)
-;;     (let* ((file-name (buffer-file-name))
-;;            (temp-buffer (generate-new-buffer " *black-temp*")))
-;;       (unwind-protect
-;;           (when file-name  ;; Only proceed if buffer is visiting a file
-;;             ;; Run black with explicit line length
-;;             (if (zerop (call-process "black" nil temp-buffer nil
-;;                                      "--line-length=88" file-name))
-;;                 (progn
-;;                   ;; Reload the file content after formatting
-;;                   (revert-buffer t t t)
-;;                   (message "Formatted with Black"))
-;;               (with-current-buffer temp-buffer
-;;                 (message "Black format failed: %s" (buffer-string)))))
-;;         (kill-buffer temp-buffer)))))
+;;   ;; Skip the auto-detection of pyenv versions - this was causing the error
 
-;; (defun my/sort-imports-with-isort ()
-;;   "Sort Python imports with isort."
-;;   (interactive)
-;;   (when (derived-mode-p 'python-mode)
-;;     (let* ((file-name (buffer-file-name))
-;;            (temp-buffer (generate-new-buffer " *isort-temp*")))
-;;       (unwind-protect
-;;           (when file-name  ;; Only proceed if buffer is visiting a file
-;;             ;; Run isort with profile black to ensure compatibility
-;;             (if (zerop (call-process "isort" nil temp-buffer nil
-;;                                      "--profile=black" file-name))
-;;                 (progn
-;;                   ;; Reload the file content after sorting imports
-;;                   (revert-buffer t t t)
-;;                   (message "Imports sorted with isort"))
-;;               (with-current-buffer temp-buffer
-;;                 (message "isort failed: %s" (buffer-string)))))
-;;         (kill-buffer temp-buffer)))))
+;;   ;; Just use the current Python executable, whatever it might be
+;;   (let ((python-executable (executable-find "python")))
+;;     ;; Update Python executable for LSP
+;;     (when python-executable
+;;       (setq-local lsp-pylsp-server-command python-executable))
 
-;; (defun my/format-python-buffer ()
+;;     ;; Log info for debugging
+;;     (message "Using Python: %s" python-executable)))
+
+;; ;; Add hook to setup Python LSP environment
+;; (add-hook 'python-mode-hook #'my/setup-python-lsp)
+
+;; ;; ;;; 5. Format on Save with Black and isort
+;; ;; (defun my/format-python-with-black ()
+;; ;;   "Format the current buffer with Black."
+;; ;;   (interactive)
+;; ;;   (when (derived-mode-p 'python-mode)
+;; ;;     (let* ((file-name (buffer-file-name))
+;; ;;            (temp-buffer (generate-new-buffer " *black-temp*")))
+;; ;;       (unwind-protect
+;; ;;           (when file-name  ;; Only proceed if buffer is visiting a file
+;; ;;             ;; Run black with explicit line length
+;; ;;             (if (zerop (call-process "black" nil temp-buffer nil
+;; ;;                                      "--line-length=88" file-name))
+;; ;;                 (progn
+;; ;;                   ;; Reload the file content after formatting
+;; ;;                   (revert-buffer t t t)
+;; ;;                   (message "Formatted with Black"))
+;; ;;               (with-current-buffer temp-buffer
+;; ;;                 (message "Black format failed: %s" (buffer-string)))))
+;; ;;         (kill-buffer temp-buffer)))))
+
+;; ;; (defun my/sort-imports-with-isort ()
+;; ;;   "Sort Python imports with isort."
+;; ;;   (interactive)
+;; ;;   (when (derived-mode-p 'python-mode)
+;; ;;     (let* ((file-name (buffer-file-name))
+;; ;;            (temp-buffer (generate-new-buffer " *isort-temp*")))
+;; ;;       (unwind-protect
+;; ;;           (when file-name  ;; Only proceed if buffer is visiting a file
+;; ;;             ;; Run isort with profile black to ensure compatibility
+;; ;;             (if (zerop (call-process "isort" nil temp-buffer nil
+;; ;;                                      "--profile=black" file-name))
+;; ;;                 (progn
+;; ;;                   ;; Reload the file content after sorting imports
+;; ;;                   (revert-buffer t t t)
+;; ;;                   (message "Imports sorted with isort"))
+;; ;;               (with-current-buffer temp-buffer
+;; ;;                 (message "isort failed: %s" (buffer-string)))))
+;; ;;         (kill-buffer temp-buffer)))))
+
+;; ;; (defun my/format-python-buffer ()
+;; ;;   "Format Python buffer with Black and isort."
+;; ;;   (interactive)
+;; ;;   (when (derived-mode-p 'python-mode)
+;; ;;     (my/sort-imports-with-isort)
+;; ;;     (my/format-python-with-black)))
+
+;; ;; ;; Set keybinding for formatting
+;; ;; (with-eval-after-load 'python
+;; ;;   (define-key python-mode-map (kbd "M-3") #'my/format-python-buffer))
+
+
+;; ;; ;; Add a toggle function for format-on-save
+;; ;; (defun my/toggle-python-format-on-save ()
+;; ;;   "Toggle format-on-save for Python buffers."
+;; ;;   (interactive)
+;; ;;   (if (member #'my/format-python-buffer before-save-hook)
+;; ;;       (progn
+;; ;;         (remove-hook 'before-save-hook #'my/format-python-buffer t)
+;; ;;         (message "Python format-on-save disabled"))
+;; ;;     (add-hook 'before-save-hook #'my/format-python-buffer nil t)
+;; ;;     (message "Python format-on-save enabled")))
+
+;; ;; ;; Bind the toggle function to a key
+;; ;; (with-eval-after-load 'python
+;; ;;   (define-key python-mode-map (kbd "C-c C-t") #'my/toggle-python-format-on-save))
+
+;; ;;; 6. Visual Indentation Guides for Python
+;; (use-package indent-bars
+;;   :defer t
+;;   :straight (indent-bars :type git :host github :repo "jdtsmith/indent-bars")
+;;   :custom
+;;   (indent-bars-treesit-support t)
+;;   (indent-bars-no-descend-string t)
+;;   (indent-bars-treesit-ignore-blank-lines-types '("module"))
+;;   (indent-bars-treesit-wrap '((python argument_list parameters
+;;                                       list list_comprehension
+;;                                       dictionary dictionary_comprehension
+;;                                       parenthesized_expression subscript)))
+;;   :config
+;;   (setq
+;;    indent-bars-color '(highlight :face-bg t :blend 0.3)
+;;    indent-bars-prefer-character 1
+;;    indent-bars-width-frac 0.9
+;;    indent-bars-pad-frac 0.2
+;;    indent-bars-zigzag 0.1
+;;    indent-bars-color-by-depth '(:palette ("red" "green" "orange" "cyan") :blend 1)
+;;    indent-bars-highlight-current-depth '(:blend 0.5))
+;;   :hook ((python-base-mode) . indent-bars-mode))
+
+;; ;;; Format on Save with Black and isort
+;; (use-package python-black
+;;   :ensure t
+;;   :after python
+;;   :config
+;;   ;; Configure black with your preferred settings
+;;   (setq python-black-extra-args '("--line-length=88"))
+;;   ;; Set up format-on-save
+;;   (setq python-black-on-save-mode nil)  ;; Start disabled - enable per-project as needed
+;;   ;; Keybinding for manual formatting
+;;   (define-key python-mode-map (kbd "C-c b") 'python-black-buffer)
+;;   ;; Command to toggle format-on-save
+;;   (define-key python-mode-map (kbd "C-c C-b") 'python-black-on-save-mode))
+
+;; (use-package py-isort
+;;   :ensure t
+;;   :after python
+;;   :config
+;;   ;; Configure isort with your preferred settings
+;;   (setq py-isort-options '("--profile=black"))
+;;   ;; Don't auto-save by default - enable per-project as needed
+;;   (remove-hook 'before-save-hook 'py-isort-before-save)
+;;   ;; Keybinding for manual sorting
+;;   (define-key python-mode-map (kbd "C-c i") 'py-isort-buffer)
+;;   ;; Toggle auto-isort-on-save
+;;   (defun toggle-py-isort-on-save ()
+;;     "Toggle isort-on-save."
+;;     (interactive)
+;;     (if (member 'py-isort-before-save before-save-hook)
+;;         (progn
+;;           (remove-hook 'before-save-hook 'py-isort-before-save)
+;;           (message "isort before save disabled"))
+;;       (add-hook 'before-save-hook 'py-isort-before-save)
+;;       (message "isort before save enabled")))
+;;   (define-key python-mode-map (kbd "C-c C-i") 'toggle-py-isort-on-save))
+
+;; ;; Combined format function (like your previous my/format-python-buffer)
+;; (defun format-python-buffer-with-black-and-isort ()
 ;;   "Format Python buffer with Black and isort."
 ;;   (interactive)
 ;;   (when (derived-mode-p 'python-mode)
-;;     (my/sort-imports-with-isort)
-;;     (my/format-python-with-black)))
+;;     (py-isort-buffer)
+;;     (python-black-buffer)))
 
-;; ;; Set keybinding for formatting
+;; ;; Combine the two actions with your existing keybinding
 ;; (with-eval-after-load 'python
-;;   (define-key python-mode-map (kbd "M-3") #'my/format-python-buffer))
+;;   (define-key python-mode-map (kbd "M-3") 'format-python-buffer-with-black-and-isort))
 
-
-;; ;; Add a toggle function for format-on-save
-;; (defun my/toggle-python-format-on-save ()
-;;   "Toggle format-on-save for Python buffers."
-;;   (interactive)
-;;   (if (member #'my/format-python-buffer before-save-hook)
-;;       (progn
-;;         (remove-hook 'before-save-hook #'my/format-python-buffer t)
-;;         (message "Python format-on-save disabled"))
-;;     (add-hook 'before-save-hook #'my/format-python-buffer nil t)
-;;     (message "Python format-on-save enabled")))
-
-;; ;; Bind the toggle function to a key
-;; (with-eval-after-load 'python
-;;   (define-key python-mode-map (kbd "C-c C-t") #'my/toggle-python-format-on-save))
-
-;;; 6. Visual Indentation Guides for Python
-(use-package indent-bars
-  :defer t
-  :straight (indent-bars :type git :host github :repo "jdtsmith/indent-bars")
-  :custom
-  (indent-bars-treesit-support t)
-  (indent-bars-no-descend-string t)
-  (indent-bars-treesit-ignore-blank-lines-types '("module"))
-  (indent-bars-treesit-wrap '((python argument_list parameters
-                                      list list_comprehension
-                                      dictionary dictionary_comprehension
-                                      parenthesized_expression subscript)))
-  :config
-  (setq
-   indent-bars-color '(highlight :face-bg t :blend 0.3)
-   indent-bars-prefer-character 1
-   indent-bars-width-frac 0.9
-   indent-bars-pad-frac 0.2
-   indent-bars-zigzag 0.1
-   indent-bars-color-by-depth '(:palette ("red" "green" "orange" "cyan") :blend 1)
-   indent-bars-highlight-current-depth '(:blend 0.5))
-  :hook ((python-base-mode) . indent-bars-mode))
-
-;;; Format on Save with Black and isort
-(use-package python-black
-  :ensure t
-  :after python
-  :config
-  ;; Configure black with your preferred settings
-  (setq python-black-extra-args '("--line-length=88"))
-  ;; Set up format-on-save
-  (setq python-black-on-save-mode nil)  ;; Start disabled - enable per-project as needed
-  ;; Keybinding for manual formatting
-  (define-key python-mode-map (kbd "C-c b") 'python-black-buffer)
-  ;; Command to toggle format-on-save
-  (define-key python-mode-map (kbd "C-c C-b") 'python-black-on-save-mode))
-
-(use-package py-isort
-  :ensure t
-  :after python
-  :config
-  ;; Configure isort with your preferred settings
-  (setq py-isort-options '("--profile=black"))
-  ;; Don't auto-save by default - enable per-project as needed
-  (remove-hook 'before-save-hook 'py-isort-before-save)
-  ;; Keybinding for manual sorting
-  (define-key python-mode-map (kbd "C-c i") 'py-isort-buffer)
-  ;; Toggle auto-isort-on-save
-  (defun toggle-py-isort-on-save ()
-    "Toggle isort-on-save."
-    (interactive)
-    (if (member 'py-isort-before-save before-save-hook)
-        (progn
-          (remove-hook 'before-save-hook 'py-isort-before-save)
-          (message "isort before save disabled"))
-      (add-hook 'before-save-hook 'py-isort-before-save)
-      (message "isort before save enabled")))
-  (define-key python-mode-map (kbd "C-c C-i") 'toggle-py-isort-on-save))
-
-;; Combined format function (like your previous my/format-python-buffer)
-(defun format-python-buffer-with-black-and-isort ()
-  "Format Python buffer with Black and isort."
-  (interactive)
-  (when (derived-mode-p 'python-mode)
-    (py-isort-buffer)
-    (python-black-buffer)))
-
-;; Combine the two actions with your existing keybinding
-(with-eval-after-load 'python
-  (define-key python-mode-map (kbd "M-3") 'format-python-buffer-with-black-and-isort))
-
-;; Optional: Enable both for all Python files (alternative to per-project approach above)
-;; (add-hook 'python-mode-hook 'python-black-on-save-mode)
-;; (add-hook 'before-save-hook 'py-isort-before-save)
+;; ;; Optional: Enable both for all Python files (alternative to per-project approach above)
+;; ;; (add-hook 'python-mode-hook 'python-black-on-save-mode)
+;; ;; (add-hook 'before-save-hook 'py-isort-before-save)
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -2204,7 +2005,7 @@ or 'LaTeX-indent-level-item-continuation' if the latter is bound."
 
 ;; These settings enhance the overall Emacs experience
 (setq-default
- ad-redefinition-action 'accept                       ; Silence warnings for redefinition
+v ad-redefinition-action 'accept                       ; Silence warnings for redefinition
  cursor-in-non-selected-windows t                     ; Hide the cursor in inactive windows
  display-time-default-load-average nil                ; Don't display load average
  help-window-select t                                 ; Focus new help windows when opened
