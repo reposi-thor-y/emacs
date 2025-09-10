@@ -313,11 +313,6 @@ Skips indentation for certain file types where it might cause issues."
   "Configure system-specific GUI settings"
   (when (display-graphic-p)
     (cond
-     ;; macOS specific
-     ((and (eq system-type 'darwin)
-           (string-equal (system-name) "macbook15-macos.vilanelva.se"))
-      (add-to-list 'default-frame-alist '(fullscreen . maximized))
-      (set-face-attribute 'default nil :font "Source Code Pro" :height 180))
      ;; Linux specific
      ((eq system-type 'gnu/linux)
       (cond
@@ -325,18 +320,12 @@ Skips indentation for certain file types where it might cause issues."
         ;; (set-frame-size (selected-frame) 120 60)
         ;; (set-frame-position (selected-frame) 400 0)
         (set-face-attribute 'default nil :font "SauceCodePro NFM" :height 120))
-       ((string-equal (system-name) "rocky-cachy-ws")
-        ;; (set-frame-size (selected-frame) 120 60)
-        ;; (set-frame-position (selected-frame) 400 0)
-        (set-face-attribute 'default nil :font "SauceCodePro NFM" :height 120))
        ((string-equal (system-name) "macbook13-linux")
         (add-to-list 'default-frame-alist '(fullscreen . maximized))
         (set-face-attribute 'default nil :font "SauceCodePro NFM" :height 200))
        ((string-equal (system-name) "sodra-ds-test")
-        (set-face-attribute 'default nil :font "SauceCodePro NFM" :height 140))
-       ((string-equal (system-name) "sod-as103403")
-        (set-frame-size (selected-frame) 160 90)
-        (set-face-attribute 'default nil :font "SauceCodePro NFM" :height 240)))))))
+        (set-face-attribute 'default nil :font "SauceCodePro NFM" :height 120))
+       )))))
 
 ;; Set up hooks
 (add-hook 'after-init-hook #'my/setup-themes)
@@ -509,13 +498,13 @@ Skips indentation for certain file types where it might cause issues."
 ;; Set hunspell as the spell checker
 (when (executable-find "hunspell")
   (setq ispell-program-name "hunspell")
-  
+
   ;; Use simple dictionary names that match your hunspell -D output
   (setq ispell-dictionary "en_GB-large")
-  
+
   ;; Set personal dictionary location
   (setq ispell-personal-dictionary "~/.local/share/spelling/personal.dic")
-  
+
   ;; Create the personal dictionary file if it doesn't exist
   (unless (file-exists-p ispell-personal-dictionary)
     (let ((dict-dir (file-name-directory ispell-personal-dictionary)))
@@ -523,10 +512,10 @@ Skips indentation for certain file types where it might cause issues."
         (make-directory dict-dir t)))
     (with-temp-file ispell-personal-dictionary
       (insert "0\n")))
-  
+
   ;; Don't use complex dictionary definitions - let hunspell handle it
   (setq ispell-local-dictionary-alist nil)
-  
+
   ;; Set up hunspell arguments properly
   (setq ispell-extra-args '("--sug-mode=ultra")))
 
@@ -594,13 +583,13 @@ Skips indentation for certain file types where it might cause issues."
       (while (and (< (point) (point-max)) (< (point) 2000) (< words-checked 100))
         (let* ((word-bounds (bounds-of-thing-at-point 'word))
                (word (when word-bounds
-                      (downcase (buffer-substring-no-properties 
-                                (car word-bounds) (cdr word-bounds))))))
+                       (downcase (buffer-substring-no-properties
+                                  (car word-bounds) (cdr word-bounds))))))
           (when word
             (setq words-checked (1+ words-checked))
-            (when (member word swedish-indicators) 
+            (when (member word swedish-indicators)
               (setq swedish-count (1+ swedish-count)))
-            (when (member word english-indicators) 
+            (when (member word english-indicators)
               (setq english-count (1+ english-count)))))
         (forward-word 1))
       ;; Set dictionary based on detection
@@ -613,7 +602,7 @@ Skips indentation for certain file types where it might cause issues."
         (spell-bilingual))))))
 
 
-; Office-suite style binding
+                                        ; Office-suite style binding
 (global-set-key (kbd "<f7>") 'flyspell-buffer)
 
 ;; Main spell checking commands
@@ -714,8 +703,8 @@ Skips indentation for certain file types where it might cause issues."
     (dolist (overlay overlays)
       (when (overlay-get overlay 'flyspell-overlay)
         (setq flyspell-overlays (1+ flyspell-overlays))
-        (message "Flyspell overlay at %d-%d: %s" 
-                 (overlay-start overlay) 
+        (message "Flyspell overlay at %d-%d: %s"
+                 (overlay-start overlay)
                  (overlay-end overlay)
                  (buffer-substring (overlay-start overlay) (overlay-end overlay)))))
     (message "Total flyspell overlays: %d" flyspell-overlays)))
@@ -738,7 +727,7 @@ Skips indentation for certain file types where it might cause issues."
 (global-set-key (kbd "C-c s D") 'debug-flyspell-overlays)
 
 ;; Hook to ensure flyspell works properly in text mode
-(add-hook 'text-mode-hook 
+(add-hook 'text-mode-hook
           (lambda ()
             (flyspell-mode 1)
             (setq flyspell-issue-message-flag nil)))  ; Reduce message noise
@@ -854,9 +843,9 @@ Skips indentation for certain file types where it might cause issues."
   :init
   (vertico-mode)
   :bind (:map vertico-map
-;              ("C-<backspace>" . vertico-directory-delete-char)
+                                        ;              ("C-<backspace>" . vertico-directory-delete-char)
               ("C-<return>" . vertico-exit-input)
- ;             ("RET" . vertico-directory-enter)
+                                        ;             ("RET" . vertico-directory-enter)
               ("C-n" . vertico-next)
               ("C-p" . vertico-previous)
               ("TAB" . vertico-insert))
@@ -2005,7 +1994,7 @@ or 'LaTeX-indent-level-item-continuation' if the latter is bound."
 
 ;; These settings enhance the overall Emacs experience
 (setq-default
-v ad-redefinition-action 'accept                       ; Silence warnings for redefinition
+ v ad-redefinition-action 'accept                       ; Silence warnings for redefinition
  cursor-in-non-selected-windows t                     ; Hide the cursor in inactive windows
  display-time-default-load-average nil                ; Don't display load average
  help-window-select t                                 ; Focus new help windows when opened
