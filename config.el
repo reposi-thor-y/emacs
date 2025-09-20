@@ -84,8 +84,6 @@
 ;; Line numbers:
 ;; set a fixed width for line numbers:
 (setq-default display-line-numbers-width-start t)
-
-;;
 (global-display-line-numbers-mode t)
 
 ;; center buffer:
@@ -509,13 +507,13 @@ Skips indentation for certain file types where it might cause issues."
 ;; Set hunspell as the spell checker
 (when (executable-find "hunspell")
   (setq ispell-program-name "hunspell")
-  
+
   ;; Use simple dictionary names that match your hunspell -D output
   (setq ispell-dictionary "en_GB-large")
-  
+
   ;; Set personal dictionary location
   (setq ispell-personal-dictionary "~/.local/share/spelling/personal.dic")
-  
+
   ;; Create the personal dictionary file if it doesn't exist
   (unless (file-exists-p ispell-personal-dictionary)
     (let ((dict-dir (file-name-directory ispell-personal-dictionary)))
@@ -523,10 +521,10 @@ Skips indentation for certain file types where it might cause issues."
         (make-directory dict-dir t)))
     (with-temp-file ispell-personal-dictionary
       (insert "0\n")))
-  
+
   ;; Don't use complex dictionary definitions - let hunspell handle it
   (setq ispell-local-dictionary-alist nil)
-  
+
   ;; Set up hunspell arguments properly
   (setq ispell-extra-args '("--sug-mode=ultra")))
 
@@ -594,13 +592,13 @@ Skips indentation for certain file types where it might cause issues."
       (while (and (< (point) (point-max)) (< (point) 2000) (< words-checked 100))
         (let* ((word-bounds (bounds-of-thing-at-point 'word))
                (word (when word-bounds
-                      (downcase (buffer-substring-no-properties 
-                                (car word-bounds) (cdr word-bounds))))))
+                       (downcase (buffer-substring-no-properties
+                                  (car word-bounds) (cdr word-bounds))))))
           (when word
             (setq words-checked (1+ words-checked))
-            (when (member word swedish-indicators) 
+            (when (member word swedish-indicators)
               (setq swedish-count (1+ swedish-count)))
-            (when (member word english-indicators) 
+            (when (member word english-indicators)
               (setq english-count (1+ english-count)))))
         (forward-word 1))
       ;; Set dictionary based on detection
@@ -613,7 +611,7 @@ Skips indentation for certain file types where it might cause issues."
         (spell-bilingual))))))
 
 
-; Office-suite style binding
+                                        ; Office-suite style binding
 (global-set-key (kbd "<f7>") 'flyspell-buffer)
 
 ;; Main spell checking commands
@@ -714,8 +712,8 @@ Skips indentation for certain file types where it might cause issues."
     (dolist (overlay overlays)
       (when (overlay-get overlay 'flyspell-overlay)
         (setq flyspell-overlays (1+ flyspell-overlays))
-        (message "Flyspell overlay at %d-%d: %s" 
-                 (overlay-start overlay) 
+        (message "Flyspell overlay at %d-%d: %s"
+                 (overlay-start overlay)
                  (overlay-end overlay)
                  (buffer-substring (overlay-start overlay) (overlay-end overlay)))))
     (message "Total flyspell overlays: %d" flyspell-overlays)))
@@ -738,7 +736,7 @@ Skips indentation for certain file types where it might cause issues."
 (global-set-key (kbd "C-c s D") 'debug-flyspell-overlays)
 
 ;; Hook to ensure flyspell works properly in text mode
-(add-hook 'text-mode-hook 
+(add-hook 'text-mode-hook
           (lambda ()
             (flyspell-mode 1)
             (setq flyspell-issue-message-flag nil)))  ; Reduce message noise
@@ -854,9 +852,9 @@ Skips indentation for certain file types where it might cause issues."
   :init
   (vertico-mode)
   :bind (:map vertico-map
-;              ("C-<backspace>" . vertico-directory-delete-char)
+                                        ;              ("C-<backspace>" . vertico-directory-delete-char)
               ("C-<return>" . vertico-exit-input)
- ;             ("RET" . vertico-directory-enter)
+                                        ;             ("RET" . vertico-directory-enter)
               ("C-n" . vertico-next)
               ("C-p" . vertico-previous)
               ("TAB" . vertico-insert))
@@ -1220,228 +1218,240 @@ Skips indentation for certain file types where it might cause issues."
     (lsp)))
 
 ;; Disable Flycheck's flake8 checker to avoid duplication with LSP
-(with-eval-after-load 'flycheck
-  (setq-default flycheck-disabled-checkers '(python-flake8)))
+;; (with-eval-after-load 'flycheck
+  ;; (setq-default flycheck-disabled-checkers '(python-flake8)))
 
 ;; Turn off LSP debugging (was previously enabled)
 (setq lsp-log-io nil)
 
-;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; ;; 9.1 PYTHON
-;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; 9.1 PYTHON
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+;;; 1. Basic Python settings
+;; Set indentation level
+(setq python-indent-offset 4)
 
-;; ;;; 1. Basic Python settings
-;; ;; Set indentation level
-;; (setq python-indent-offset 4)
+;;; 2. Python Environment Detection (uv-aware)
+;; Helper function to find Python executable (uv-aware)
+(defun my/find-python-executable ()
+  "Find the appropriate Python executable, preferring uv environments."
+  (cond
+   ;; If we're in a project with pyproject.toml, use uv run python
+   ((and (locate-dominating-file default-directory "pyproject.toml")
+         (executable-find "uv"))
+    "uv run python")
+   ;; If .venv exists in project, use it directly
+   ((file-exists-p (expand-file-name ".venv/bin/python" (project-root (project-current))))
+    (expand-file-name ".venv/bin/python" (project-root (project-current))))
+   ;; Fall back to system python
+   (t (or (executable-find "python3") (executable-find "python")))))
 
-;; ;;; 2. Python Environment Management (pyenv)
-;; (use-package pyenv-mode
-;;   :defer t
-;;   :init
-;;   (add-to-list 'exec-path "~/.pyenv/shims")
-;;   :config
-;;   (pyenv-mode)
-;;   (when (executable-find "pyenv")
-;;     (setenv "PYENV_ROOT" (replace-regexp-in-string "\n" "" (shell-command-to-string "pyenv root")))
-;;     (add-to-list 'exec-path (concat (getenv "PYENV_ROOT") "/shims")))
-;;   :hook (python-mode . pyenv-mode)
-;;   :bind ("C-c C-s" . pyenv-mode-set))
+;;; 3. Ruff Integration with Flycheck
+(with-eval-after-load 'flycheck
+  ;; Define ruff checker
+  (flycheck-define-checker python-ruff
+    "A Python syntax and style checker using ruff."
+    :command ("ruff" "check"
+              "--output-format" "text"
+              "--stdin-filename" source-original
+              "-")
+    :standard-input t
+    :working-directory flycheck-python-find-project-root-function
+    :error-patterns
+    ((error line-start (file-name) ":" line ":" (optional column ":") " " (id (one-or-more (not (any ":")))) ":" (message) line-end))
+    :modes python-mode
+    :next-checkers ((warning . python-mypy)))
 
-;; ;;; 3. Python Linting with flake8
-;; ;; Define flake8 as a Python syntax checker in Flycheck
-;; (with-eval-after-load 'flycheck
-;;   (setq flycheck-python-flake8-executable "flake8")
+  ;; Add ruff to the list of checkers
+  (add-to-list 'flycheck-checkers 'python-ruff)
 
-;;   ;; Configure flake8 options
-;;   (setq flycheck-flake8rc ".flake8")  ;; Use .flake8 config file if present
-;;   (setq flycheck-flake8-maximum-line-length 88)  ;; Match Black's default line length
+  ;; Set ruff as the preferred checker for Python
+  (setq flycheck-python-ruff-executable "ruff"))
 
-;;   ;; Prioritize flake8 for Python
-;;   (flycheck-add-next-checker 'python-flake8 'python-pylint t))
+;; Enable flycheck in Python mode
+(add-hook 'python-mode-hook 'flycheck-mode)
 
-;; ;; Enable flycheck in Python mode
-;; (add-hook 'python-mode-hook 'flycheck-mode)
+;;; 4. LSP Configuration with ruff-lsp
+(with-eval-after-load 'lsp-mode
+  ;; Register ruff-lsp server
+  (lsp-register-client
+   (make-lsp-client :new-connection (lsp-stdio-connection "ruff-lsp")
+                    :activation-fn (lsp-activate-on "python")
+                    :server-id 'ruff-lsp
+                    :priority 10
+                    :add-on? t))
 
-;; ;;; 4. Python LSP Configuration
-;; (with-eval-after-load 'lsp-mode
-;;   ;; Python LSP settings
-;;   (setq lsp-pylsp-plugins-flake8-enabled t)  ;; Enable flake8
-;;   (setq lsp-pylsp-plugins-flake8-max-line-length 88)  ;; Match Black's default
+  ;; Configure ruff-lsp settings
+  (lsp-register-custom-settings
+   '(("ruff.lint.enable" t t)
+     ("ruff.format.enable" t t)
+     ("ruff.lint.args" ["--line-length=88"] t)
+     ("ruff.format.args" ["--line-length=88"] t)))
 
-;;   ;; Disable tools we're not using
-;;   (setq lsp-pylsp-plugins-pycodestyle-enabled nil)
-;;   (setq lsp-pylsp-plugins-mccabe-enabled nil)
+  ;; Set ruff-lsp as preferred server for Python
+  (setq lsp-disabled-clients '(pylsp pyls mspyls))
 
-;;   ;; Ensure we're only using a single LSP server (pylsp)
-;;   (setq lsp-pylsp-server-command "pylsp")
-;;   (setq lsp-clients-pylsp-library-directories '("/usr"))
+  ;; Python-specific LSP settings
+  (setq lsp-python-ms-auto-install-server nil)
+  (setq lsp-pylsp-server-command nil))
 
-;;   ;; Configure server for Python
-;;   (lsp-register-custom-settings
-;;    '(("pylsp.plugins.flake8.maxLineLength" 88 t)
-;;      ("pylsp.plugins.pyflakes.enabled" t t)
-;;      ("pylsp.plugins.black.enabled" t t)
-;;      ("pylsp.plugins.isort.enabled" t t))))
+;; Helper function to setup Python environment for LSP
+(defun my/setup-python-lsp ()
+  "Set up Python LSP environment with uv-aware detection."
+  (interactive)
+  (let ((python-executable (my/find-python-executable)))
+    (when python-executable
+      (setq-local python-shell-interpreter python-executable)
+      (message "Using Python: %s" python-executable))))
 
-;; ;; Virtual env support
-;; (defun my/setup-python-lsp ()
-;;   "Set up Python LSP environment with current pyenv."
-;;   (interactive)
-;;   ;; Skip the auto-detection of pyenv versions - this was causing the error
+;; Add hook to setup Python LSP environment
+(add-hook 'python-mode-hook #'my/setup-python-lsp)
 
-;;   ;; Just use the current Python executable, whatever it might be
-;;   (let ((python-executable (executable-find "python")))
-;;     ;; Update Python executable for LSP
-;;     (when python-executable
-;;       (setq-local lsp-pylsp-server-command python-executable))
+;;; 5. Ruff Formatting Functions
+(defun my/ruff-format-buffer ()
+  "Format the current Python buffer with ruff."
+  (interactive)
+  (when (derived-mode-p 'python-mode)
+    (let* ((file-name (buffer-file-name))
+           (temp-buffer (generate-new-buffer " *ruff-format-temp*")))
+      (unwind-protect
+          (when file-name
+            ;; Run ruff format
+            (if (zerop (call-process "ruff" nil temp-buffer nil
+                                     "format" "--line-length=88" file-name))
+                (progn
+                  ;; Reload the file content after formatting
+                  (revert-buffer t t t)
+                  (message "Formatted with ruff"))
+              (with-current-buffer temp-buffer
+                (message "Ruff format failed: %s" (buffer-string)))))
+        (kill-buffer temp-buffer)))))
 
-;;     ;; Log info for debugging
-;;     (message "Using Python: %s" python-executable)))
+(defun my/ruff-organize-imports ()
+  "Organize imports in the current Python buffer with ruff."
+  (interactive)
+  (when (derived-mode-p 'python-mode)
+    (let* ((file-name (buffer-file-name))
+           (temp-buffer (generate-new-buffer " *ruff-isort-temp*")))
+      (unwind-protect
+          (when file-name
+            ;; Run ruff check with --fix for import sorting
+            (if (zerop (call-process "ruff" nil temp-buffer nil
+                                     "check" "--select=I" "--fix" file-name))
+                (progn
+                  ;; Reload the file content after organizing imports
+                  (revert-buffer t t t)
+                  (message "Imports organized with ruff"))
+              (with-current-buffer temp-buffer
+                (message "Ruff organize imports failed: %s" (buffer-string)))))
+        (kill-buffer temp-buffer)))))
 
-;; ;; Add hook to setup Python LSP environment
-;; (add-hook 'python-mode-hook #'my/setup-python-lsp)
+(defun my/ruff-format-and-organize ()
+  "Format Python buffer and organize imports with ruff."
+  (interactive)
+  (when (derived-mode-p 'python-mode)
+    (my/ruff-organize-imports)
+    (my/ruff-format-buffer)))
 
-;; ;; ;;; 5. Format on Save with Black and isort
-;; ;; (defun my/format-python-with-black ()
-;; ;;   "Format the current buffer with Black."
-;; ;;   (interactive)
-;; ;;   (when (derived-mode-p 'python-mode)
-;; ;;     (let* ((file-name (buffer-file-name))
-;; ;;            (temp-buffer (generate-new-buffer " *black-temp*")))
-;; ;;       (unwind-protect
-;; ;;           (when file-name  ;; Only proceed if buffer is visiting a file
-;; ;;             ;; Run black with explicit line length
-;; ;;             (if (zerop (call-process "black" nil temp-buffer nil
-;; ;;                                      "--line-length=88" file-name))
-;; ;;                 (progn
-;; ;;                   ;; Reload the file content after formatting
-;; ;;                   (revert-buffer t t t)
-;; ;;                   (message "Formatted with Black"))
-;; ;;               (with-current-buffer temp-buffer
-;; ;;                 (message "Black format failed: %s" (buffer-string)))))
-;; ;;         (kill-buffer temp-buffer)))))
+;;; 6. Format on Save (Optional)
+;; Toggle function for format-on-save
+(defun my/toggle-ruff-format-on-save ()
+  "Toggle ruff format-on-save for Python buffers."
+  (interactive)
+  (if (member #'my/ruff-format-and-organize before-save-hook)
+      (progn
+        (remove-hook 'before-save-hook #'my/ruff-format-and-organize t)
+        (message "Ruff format-on-save disabled"))
+    (add-hook 'before-save-hook #'my/ruff-format-and-organize nil t)
+    (message "Ruff format-on-save enabled")))
 
-;; ;; (defun my/sort-imports-with-isort ()
-;; ;;   "Sort Python imports with isort."
-;; ;;   (interactive)
-;; ;;   (when (derived-mode-p 'python-mode)
-;; ;;     (let* ((file-name (buffer-file-name))
-;; ;;            (temp-buffer (generate-new-buffer " *isort-temp*")))
-;; ;;       (unwind-protect
-;; ;;           (when file-name  ;; Only proceed if buffer is visiting a file
-;; ;;             ;; Run isort with profile black to ensure compatibility
-;; ;;             (if (zerop (call-process "isort" nil temp-buffer nil
-;; ;;                                      "--profile=black" file-name))
-;; ;;                 (progn
-;; ;;                   ;; Reload the file content after sorting imports
-;; ;;                   (revert-buffer t t t)
-;; ;;                   (message "Imports sorted with isort"))
-;; ;;               (with-current-buffer temp-buffer
-;; ;;                 (message "isort failed: %s" (buffer-string)))))
-;; ;;         (kill-buffer temp-buffer)))))
+;;; 7. Python Mode Keybindings
+(with-eval-after-load 'python
+  ;; Format buffer (replaces your M-3 keybinding)
+  (define-key python-mode-map (kbd "M-3") #'my/ruff-format-and-organize)
 
-;; ;; (defun my/format-python-buffer ()
-;; ;;   "Format Python buffer with Black and isort."
-;; ;;   (interactive)
-;; ;;   (when (derived-mode-p 'python-mode)
-;; ;;     (my/sort-imports-with-isort)
-;; ;;     (my/format-python-with-black)))
+  ;; Individual actions
+  (define-key python-mode-map (kbd "C-c r f") #'my/ruff-format-buffer)
+  (define-key python-mode-map (kbd "C-c r i") #'my/ruff-organize-imports)
 
-;; ;; ;; Set keybinding for formatting
-;; ;; (with-eval-after-load 'python
-;; ;;   (define-key python-mode-map (kbd "M-3") #'my/format-python-buffer))
+  ;; Toggle format-on-save
+  (define-key python-mode-map (kbd "C-c r t") #'my/toggle-ruff-format-on-save)
 
+  ;; Run ruff check manually
+  (define-key python-mode-map (kbd "C-c r c")
+              (lambda ()
+                (interactive)
+                (compile (format "ruff check %s" (buffer-file-name))))))
 
-;; ;; ;; Add a toggle function for format-on-save
-;; ;; (defun my/toggle-python-format-on-save ()
-;; ;;   "Toggle format-on-save for Python buffers."
-;; ;;   (interactive)
-;; ;;   (if (member #'my/format-python-buffer before-save-hook)
-;; ;;       (progn
-;; ;;         (remove-hook 'before-save-hook #'my/format-python-buffer t)
-;; ;;         (message "Python format-on-save disabled"))
-;; ;;     (add-hook 'before-save-hook #'my/format-python-buffer nil t)
-;; ;;     (message "Python format-on-save enabled")))
+;;; 8. Project Management Integration
+;; Add pyproject.toml as a project root indicator
+(with-eval-after-load 'project
+  (add-to-list 'project-find-functions
+               (lambda (dir)
+                 (when-let ((root (locate-dominating-file dir "pyproject.toml")))
+                   (cons 'pyproject root))))
+  
+  ;; Define how to get the root from our custom project type
+  (cl-defmethod project-root ((project (head pyproject)))
+    (cdr project)))
 
-;; ;; ;; Bind the toggle function to a key
-;; ;; (with-eval-after-load 'python
-;; ;;   (define-key python-mode-map (kbd "C-c C-t") #'my/toggle-python-format-on-save))
+;; Add uv commands for common tasks
+(defun my/uv-add-dependency ()
+  "Add a dependency using uv."
+  (interactive)
+  (let ((dep (read-string "Dependency to add: ")))
+    (when (and dep (not (string-empty-p dep)))
+      (compile (format "uv add %s" dep)))))
 
-;; ;;; 6. Visual Indentation Guides for Python
-;; (use-package indent-bars
-;;   :defer t
-;;   :straight (indent-bars :type git :host github :repo "jdtsmith/indent-bars")
-;;   :custom
-;;   (indent-bars-treesit-support t)
-;;   (indent-bars-no-descend-string t)
-;;   (indent-bars-treesit-ignore-blank-lines-types '("module"))
-;;   (indent-bars-treesit-wrap '((python argument_list parameters
-;;                                       list list_comprehension
-;;                                       dictionary dictionary_comprehension
-;;                                       parenthesized_expression subscript)))
-;;   :config
-;;   (setq
-;;    indent-bars-color '(highlight :face-bg t :blend 0.3)
-;;    indent-bars-prefer-character 1
-;;    indent-bars-width-frac 0.9
-;;    indent-bars-pad-frac 0.2
-;;    indent-bars-zigzag 0.1
-;;    indent-bars-color-by-depth '(:palette ("red" "green" "orange" "cyan") :blend 1)
-;;    indent-bars-highlight-current-depth '(:blend 0.5))
-;;   :hook ((python-base-mode) . indent-bars-mode))
+(defun my/uv-add-dev-dependency ()
+  "Add a dev dependency using uv."
+  (interactive)
+  (let ((dep (read-string "Dev dependency to add: ")))
+    (when (and dep (not (string-empty-p dep)))
+      (compile (format "uv add --dev %s" dep)))))
 
-;; ;;; Format on Save with Black and isort
-;; (use-package python-black
-;;   :ensure t
-;;   :after python
-;;   :config
-;;   ;; Configure black with your preferred settings
-;;   (setq python-black-extra-args '("--line-length=88"))
-;;   ;; Set up format-on-save
-;;   (setq python-black-on-save-mode nil)  ;; Start disabled - enable per-project as needed
-;;   ;; Keybinding for manual formatting
-;;   (define-key python-mode-map (kbd "C-c b") 'python-black-buffer)
-;;   ;; Command to toggle format-on-save
-;;   (define-key python-mode-map (kbd "C-c C-b") 'python-black-on-save-mode))
+(defun my/uv-sync ()
+  "Sync dependencies using uv."
+  (interactive)
+  (compile "uv sync"))
 
-;; (use-package py-isort
-;;   :ensure t
-;;   :after python
-;;   :config
-;;   ;; Configure isort with your preferred settings
-;;   (setq py-isort-options '("--profile=black"))
-;;   ;; Don't auto-save by default - enable per-project as needed
-;;   (remove-hook 'before-save-hook 'py-isort-before-save)
-;;   ;; Keybinding for manual sorting
-;;   (define-key python-mode-map (kbd "C-c i") 'py-isort-buffer)
-;;   ;; Toggle auto-isort-on-save
-;;   (defun toggle-py-isort-on-save ()
-;;     "Toggle isort-on-save."
-;;     (interactive)
-;;     (if (member 'py-isort-before-save before-save-hook)
-;;         (progn
-;;           (remove-hook 'before-save-hook 'py-isort-before-save)
-;;           (message "isort before save disabled"))
-;;       (add-hook 'before-save-hook 'py-isort-before-save)
-;;       (message "isort before save enabled")))
-;;   (define-key python-mode-map (kbd "C-c C-i") 'toggle-py-isort-on-save))
+(defun my/uv-run-script ()
+  "Run a script using uv run."
+  (interactive)
+  (let ((script (read-string "Script to run: " (buffer-file-name))))
+    (when (and script (not (string-empty-p script)))
+      (compile (format "uv run %s" script)))))
 
-;; ;; Combined format function (like your previous my/format-python-buffer)
-;; (defun format-python-buffer-with-black-and-isort ()
-;;   "Format Python buffer with Black and isort."
-;;   (interactive)
-;;   (when (derived-mode-p 'python-mode)
-;;     (py-isort-buffer)
-;;     (python-black-buffer)))
+;; Additional keybindings for uv commands
+(with-eval-after-load 'python
+  (define-key python-mode-map (kbd "C-c u a") #'my/uv-add-dependency)
+  (define-key python-mode-map (kbd "C-c u d") #'my/uv-add-dev-dependency)
+  (define-key python-mode-map (kbd "C-c u s") #'my/uv-sync)
+  (define-key python-mode-map (kbd "C-c u r") #'my/uv-run-script))
 
-;; ;; Combine the two actions with your existing keybinding
-;; (with-eval-after-load 'python
-;;   (define-key python-mode-map (kbd "M-3") 'format-python-buffer-with-black-and-isort))
-
-;; ;; Optional: Enable both for all Python files (alternative to per-project approach above)
-;; ;; (add-hook 'python-mode-hook 'python-black-on-save-mode)
-;; ;; (add-hook 'before-save-hook 'py-isort-before-save)
+;;; 9. Visual Indentation Guides for Python (unchanged)
+(use-package indent-bars
+  :defer t
+  :straight (indent-bars :type git :host github :repo "jdtsmith/indent-bars")
+  :custom
+  (indent-bars-treesit-support t)
+  (indent-bars-no-descend-string t)
+  (indent-bars-treesit-ignore-blank-lines-types '("module"))
+  (indent-bars-treesit-wrap '((python argument_list parameters
+                                      list list_comprehension
+                                      dictionary dictionary_comprehension
+                                      parenthesized_expression subscript)))
+  :config
+  (setq
+   indent-bars-color '(highlight :face-bg t :blend 0.3)
+   indent-bars-prefer-character 1
+   indent-bars-width-frac 0.9
+   indent-bars-pad-frac 0.2
+   indent-bars-zigzag 0.1
+   indent-bars-color-by-depth '(:palette ("red" "green" "orange" "cyan") :blend 1)
+   indent-bars-highlight-current-depth '(:blend 0.5))
+  :hook ((python-base-mode) . indent-bars-mode))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -2005,7 +2015,7 @@ or 'LaTeX-indent-level-item-continuation' if the latter is bound."
 
 ;; These settings enhance the overall Emacs experience
 (setq-default
-v ad-redefinition-action 'accept                       ; Silence warnings for redefinition
+ v ad-redefinition-action 'accept                       ; Silence warnings for redefinition
  cursor-in-non-selected-windows t                     ; Hide the cursor in inactive windows
  display-time-default-load-average nil                ; Don't display load average
  help-window-select t                                 ; Focus new help windows when opened
