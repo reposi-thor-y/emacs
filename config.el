@@ -1224,10 +1224,6 @@ Skips indentation for certain file types where it might cause issues."
   (when (memq window-system '(x pclone))
     (exec-path-from-shell-initialize)))
 
-;; Alternatively, manually add ~/bin to exec-path if you don't want the package
-;; (add-to-list 'exec-path (expand-file-name "~/bin"))
-;; (setenv "PATH" (concat (expand-file-name "~/bin") ":" (getenv "PATH")))
-
 ;;; 1. Basic Python settings
 ;; Set indentation level (Black uses 4 spaces)
 (setq python-indent-offset 4)
