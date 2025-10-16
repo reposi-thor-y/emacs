@@ -321,7 +321,7 @@ Skips indentation for certain file types where it might cause issues."
         ;; (set-frame-position (selected-frame) 400 0)
         (set-face-attribute 'default nil :font "SauceCodePro NFM" :height 120))
        ((string-equal (system-name) "rocky-laptop")
-        (set-face-attribute 'default nil :font "SauceCodePro NFM" :height 120))
+        (set-face-attribute 'default nil :font "Source Code Pro" :height 120))
        )))))
 
 ;; Set up hooks
