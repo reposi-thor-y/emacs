@@ -1,4 +1,4 @@
-;;; config.el --- Optimized Emacs Configuration -*- lexical-binding: t; -*-
+;;; config.el --- Optimized Emacs Configuration
 
 ;;; Commentary:
 ;; Optimized Emacs configuration by Johan Thor
@@ -311,6 +311,11 @@ Skips indentation for certain file types where it might cause issues."
   "Configure system-specific GUI settings"
   (when (display-graphic-p)
     (cond
+     ;; macOS specific
+     ((and (eq system-type 'darwin)
+           (string-equal (system-name) "macbook15-macos.vilanelva.se"))
+      (add-to-list 'default-frame-alist '(fullscreen . maximized))
+      (set-face-attribute 'default nil :font "Source Code Pro" :height 180))
      ;; Linux specific
      ((eq system-type 'gnu/linux)
       (cond
@@ -318,9 +323,18 @@ Skips indentation for certain file types where it might cause issues."
         ;; (set-frame-size (selected-frame) 120 60)
         ;; (set-frame-position (selected-frame) 400 0)
         (set-face-attribute 'default nil :font "SauceCodePro NFM" :height 120))
-       ((string-equal (system-name) "rocky-laptop")
+       ((string-equal (system-name) "rocky-cachy-ws")
+        ;; (set-frame-size (selected-frame) 120 60)
+        ;; (set-frame-position (selected-frame) 400 0)
         (set-face-attribute 'default nil :font "SauceCodePro NFM" :height 120))
-       )))))
+       ((string-equal (system-name) "macbook13-linux")
+        (add-to-list 'default-frame-alist '(fullscreen . maximized))
+        (set-face-attribute 'default nil :font "SauceCodePro NFM" :height 200))
+       ((string-equal (system-name) "sodra-ds-test")
+        (set-face-attribute 'default nil :font "SauceCodePro NFM" :height 140))
+       ((string-equal (system-name) "sod-as103403")
+        (set-frame-size (selected-frame) 160 90)
+        (set-face-attribute 'default nil :font "SauceCodePro NFM" :height 240)))))))
 
 ;; Set up hooks
 (add-hook 'after-init-hook #'my/setup-themes)
@@ -2005,8 +2019,8 @@ or 'LaTeX-indent-level-item-continuation' if the latter is bound."
             (t
              (+ contin indent))))))
 
-(use-package auctex
-  ;; :ensure auctex
+(use-package tex
+  :ensure auctex
   :defer t
   :mode ("\\.tex\\'" . latex-mode)
   :init
@@ -2311,48 +2325,78 @@ or 'LaTeX-indent-level-item-continuation' if the latter is bound."
 (use-package toml-mode
   :defer t)
 
+;; JSON mode with improvements
+(use-package json-mode
+  :defer t
+  :delight "J"
+  :mode (("\\.json\\'" . my-json-mode)
+         ("\\.jsonc\\'" . my-jsonc-mode)
+         ("\\.json5\\'" . my-jsonc-mode))
+  :hook ((json-mode . my/json-mode-setup)
+         (before-save . my/json-mode-before-save-hook))
+  :preface
+  (defun my/json-mode-setup ()
+    "Setup function for JSON modes."
+    (make-local-variable 'js-indent-level)
+    (setq js-indent-level 2)
+    (setq-local indent-tabs-mode nil))
 
-;; Simple JSON/JSONC solution - manual control
-;; Simple JSON formatting - no custom modes
-(defun my/format-with-jq ()
-  "Format JSON using jq."
-  (interactive)
-  (shell-command-on-region (point-min) (point-max) "jq --indent 4 ." nil t))
+  (defun my/json-mode-before-save-hook ()
+    "Format JSON buffer before saving, if in a JSON mode."
+    (when (derived-mode-p 'json-mode)
+      (when (not (bound-and-true-p my-json-format-disabled))
+        (json-pretty-print-buffer))))
 
-(defun my/waybar-mode ()
-  "Switch to js-json-mode and format."
-  (interactive)
-  (js-json-mode)
-  (my/format-with-jq)
-  (message "Waybar config formatted"))
+  (defun my/json-array-of-numbers-on-one-line (encode array)
+    "Print arrays of numbers in one line."
+    (let* ((is-all-numbers (catch 'not-all-numbers
+                             (dotimes (i (length array))
+                               (unless (numberp (aref array i))
+                                 (throw 'not-all-numbers nil)))
+                             t))
+           (json-encoding-pretty-print
+            (and json-encoding-pretty-print
+                 (not is-all-numbers)))
+           (json-encoding-separator (if json-encoding-pretty-print "," ", ")))
+      (funcall encode array)))
 
-(defun my/has-comments-p ()
-  "Check if buffer contains // comments."
-  (save-excursion
-    (goto-char (point-min))
-    (re-search-forward "//" nil t)))
+  (defun my/toggle-json-format-on-save ()
+    "Toggle JSON formatting on save."
+    (interactive)
+    (setq-local my-json-format-disabled (not (bound-and-true-p my-json-format-disabled)))
+    (message "JSON format on save %s" (if my-json-format-disabled "disabled" "enabled")))
 
-(defun my/format-smart ()
-  "Use jq for pure JSON, indentation for JSONC with comments."
-  (interactive)
-  (if (my/has-comments-p)
-      (progn
-        (indent-region (point-min) (point-max))
-        (message "JSONC formatted (indentation only - has comments)"))
-    (shell-command-on-region (point-min) (point-max) "jq --indent 4 ." nil t)
-    (message "JSON formatted with jq")))
+  :config
+  (advice-add 'json-encode-array :around #'my/json-array-of-numbers-on-one-line)
 
-(global-set-key (kbd "C-c C-j") 'my/format-smart)
+  ;; Base JSON mode with comments
+  (define-derived-mode my-json-mode json-mode "JSON"
+    "Major mode for editing JSON files."
+    (setq-local indent-tabs-mode nil)
+    (setq-local js-indent-level 2))
 
-;; Key bindings
-;; (global-set-key (kbd "C-c C-j") 'my/format-with-jq)
-(global-set-key (kbd "C-c w") 'my/waybar-mode)
+  ;; JSONC mode (JSON with Comments)
+  (define-derived-mode my-jsonc-mode my-json-mode "JSONC"
+    "Major mode for editing JSON files with C-style comments."
+    (setq-local comment-start "// ")
+    (setq-local comment-end "")
+    (setq-local comment-start-skip "//+\\s-*")
+    (setq-local comment-use-syntax t)
+    (modify-syntax-entry ?/ ". 124b" syntax-table)
+    (modify-syntax-entry ?* ". 23" syntax-table)
+    (modify-syntax-entry ?\n "> b" syntax-table))
 
+  (define-key json-mode-map (kbd "C-c C-t") 'my/toggle-json-format-on-save)
+  (define-key json-mode-map (kbd "C-c C-f") 'json-pretty-print-buffer))
 
+(use-package json-navigator
+  :defer t
+  :after json-mode)
 
-
-
-
+(use-package prettier
+  :defer t
+  :hook ((json-mode . prettier-mode)
+         (my-jsonc-mode . prettier-mode)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; 10. MISC SETTINGS
@@ -2360,7 +2404,7 @@ or 'LaTeX-indent-level-item-continuation' if the latter is bound."
 
 ;; These settings enhance the overall Emacs experience
 (setq-default
-  ad-redefinition-action 'accept                       ; Silence warnings for redefinition uv-ruff-migration
+ v ad-redefinition-action 'accept                       ; Silence warnings for redefinition
  cursor-in-non-selected-windows t                     ; Hide the cursor in inactive windows
  display-time-default-load-average nil                ; Don't display load average
  help-window-select t                                 ; Focus new help windows when opened
@@ -2378,7 +2422,7 @@ or 'LaTeX-indent-level-item-continuation' if the latter is bound."
  view-read-only t)                                    ; Always open read-only buffers in view-mode
 
 ;; Final UI tweaks
-;; (global-hl-line-mode 1)                            ; Highlight current line
+;; (global-hl-line-mode 1)                                 ; Highlight current line
 (show-paren-mode 1)                                   ; Show matching parenthesis
 (fset 'yes-or-no-p 'y-or-n-p)                         ; Replace yes/no prompts with y/n
 
