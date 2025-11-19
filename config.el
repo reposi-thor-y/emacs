@@ -14,19 +14,26 @@
 (setq package-archives '(("elpa" . "https://elpa.gnu.org/packages/")
                          ("melpa" . "https://melpa.org/packages/")))
 
-;; Bootstrap straight.el
+
 (defvar bootstrap-version)
 (let ((bootstrap-file
-       (expand-file-name "straight/repos/straight.el/bootstrap.el" user-emacs-directory))
-      (bootstrap-version 5))
+       (expand-file-name
+        "straight/repos/straight.el/bootstrap.el"
+        (or (bound-and-true-p straight-base-dir)
+            user-emacs-directory)))
+      (bootstrap-version 7))
   (unless (file-exists-p bootstrap-file)
     (with-current-buffer
         (url-retrieve-synchronously
-         "https://raw.githubusercontent.com/raxod502/straight.el/develop/install.el"
+         "https://raw.githubusercontent.com/radian-software/straight.el/develop/install.el"
          'silent 'inhibit-cookies)
       (goto-char (point-max))
       (eval-print-last-sexp)))
   (load bootstrap-file nil 'nomessage))
+
+;; Use straight.el for package management
+(straight-use-package 'use-package)
+(setq straight-use-package-by-default t)
 
 ;; Integrate `straight' with `use-package'
 (straight-use-package 'use-package)
@@ -293,7 +300,7 @@ Skips indentation for certain file types where it might cause issues."
   (mapc #'disable-theme custom-enabled-themes)
   (if (display-graphic-p)
       ;; GUI mode
-      (load-theme 'ef-owl t)
+      (load-theme 'modus-vivendi-tinted t)
     ;; Terminal mode
     (progn
       (load-theme 'tango-dark t)
@@ -368,10 +375,10 @@ Skips indentation for certain file types where it might cause issues."
 (add-hook 'after-load-theme-hook 'my/set-hl-line-color)
 
 
-;; Install mana theme collection
-(use-package ef-themes
-  :ensure t
-  :defer t)
+;; ;; Install mana theme collection
+;; (use-package ef-themes
+;;   :ensure t
+;;   :defer t)
 
 ;; Disable unused UI elements
 (custom-set-variables
@@ -477,11 +484,31 @@ Skips indentation for certain file types where it might cause issues."
 (add-hook 'text-mode-hook #'my/text-mode-setup)
 (add-hook 'prog-mode-hook #'my/prog-mode-setup)
 
-;; Column settings
-(setq-default fill-column 88)
-(setq-default display-fill-column-indicator-column 88)
+
+;; Enable column number mode globally
 (column-number-mode 1)
 
+;; Set default fill-column
+(setq-default fill-column 80)
+
+;; Enable fill column indicator globally
+(global-display-fill-column-indicator-mode 1)
+
+;; Configure per-mode settings
+(add-hook 'elisp-mode-hook
+          (lambda ()
+            (setq fill-column 80)
+            (setq display-fill-column-indicator-column 80)))
+
+(add-hook 'markdown-mode-hook
+          (lambda ()
+            (setq fill-column 80)
+            (setq display-fill-column-indicator-column 80)))
+
+(add-hook 'python-mode-hook
+          (lambda ()
+            (setq fill-column 88)
+            (setq display-fill-column-indicator-column 88)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; 5. SPELL CHECKING
@@ -1205,7 +1232,7 @@ Skips indentation for certain file types where it might cause issues."
 
 ;; Disable Flycheck's flake8 checker to avoid duplication with LSP
 ;; (with-eval-after-load 'flycheck
-  ;; (setq-default flycheck-disabled-checkers '(python-flake8)))
+;; (setq-default flycheck-disabled-checkers '(python-flake8)))
 
 ;; Turn off LSP debugging (was previously enabled)
 (setq lsp-log-io nil)
@@ -1216,7 +1243,7 @@ Skips indentation for certain file types where it might cause issues."
 ;; 9.1 PYTHON
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;; 0. Ensure PATH includes ~/bin (for uv)
+;;; 0. Ensure PATH includes ~/.local/bin (for uv)
 ;; This fixes the issue where GUI-launched Emacs doesn't inherit shell PATH
 (use-package exec-path-from-shell
   :ensure t
@@ -1232,35 +1259,14 @@ Skips indentation for certain file types where it might cause issues."
 (add-hook 'inferior-python-mode-hook
           (lambda ()
             (setq-local comint-output-filter-functions
-                       (cons 'comint-truncate-buffer comint-output-filter-functions))))
+                        (cons 'comint-truncate-buffer comint-output-filter-functions))))
 
-;; Function to display matplotlib plots in Emacs
-(defun my/display-matplotlib-plot ()
-  "Display the most recently created PNG plot in the current directory."
-  (interactive)
-  (let ((png-files (directory-files default-directory t "\\.png$" t)))
-    (when png-files
-      ;; Get the most recently modified PNG file
-      (let ((latest-png (car (sort png-files
-                                  (lambda (a b)
-                                    (time-less-p (file-attribute-modification-time (file-attributes b))
-                                               (file-attribute-modification-time (file-attributes a))))))))
-        (when latest-png
-          (find-file-other-window latest-png)
-          (image-mode)
-          (message "Displaying: %s" (file-name-nondirectory latest-png)))))))
-
-;; Keybinding to display plots
-(with-eval-after-load 'python
-  (define-key python-mode-map (kbd "C-c p") #'my/display-matplotlib-plot))
-
-;;; 2. Python Environment Detection (uv-aware)
-;; Helper function to find Python executable (uv-aware)
+;;; 2. Python Environment Detection
 (defun my/find-python-executable ()
   "Find the appropriate Python executable, preferring uv environments.
 Returns a cons cell (INTERPRETER . ARGS) or just INTERPRETER string."
   (let ((uv-path (or (executable-find "uv")
-                     (expand-file-name "~/bin/uv"))))
+                     (expand-file-name "~/.local/bin/uv"))))
     (cond
      ;; If we're in a project with pyproject.toml and uv is available
      ((and (locate-dominating-file default-directory "pyproject.toml")
@@ -1268,11 +1274,12 @@ Returns a cons cell (INTERPRETER . ARGS) or just INTERPRETER string."
       (cons uv-path '("run" "python")))
      ;; If .venv exists in project, use it directly
      ((and (project-current)
-           (file-exists-p (expand-file-name ".venv/bin/python" 
-                                           (project-root (project-current)))))
+           (file-exists-p (expand-file-name ".venv/bin/python"
+                                            (project-root (project-current)))))
       (expand-file-name ".venv/bin/python" (project-root (project-current))))
      ;; Fall back to system python
      (t (or (executable-find "python3") (executable-find "python"))))))
+
 
 ;;; 3. Ruff Integration with Flycheck
 (with-eval-after-load 'flycheck
@@ -1280,56 +1287,58 @@ Returns a cons cell (INTERPRETER . ARGS) or just INTERPRETER string."
   (flycheck-define-checker python-ruff
     "A Python syntax and style checker using ruff."
     :command ("ruff" "check"
-              "--output-format" "text"
+              "--output-format" "concise"
               "--stdin-filename" source-original
               "-")
     :standard-input t
-    :working-directory flycheck-python-find-project-root-function
+    :working-directory (lambda (_) (or (locate-dominating-file default-directory "pyproject.toml")
+                                       (locate-dominating-file default-directory ".git")
+                                       default-directory))
     :error-patterns
-    ((error line-start (file-name) ":" line ":" (optional column ":") " " 
-            (id (one-or-more (not (any ":")))) ":" (message) line-end))
+    ((error line-start (file-name) ":" line ":" (optional column ":") " "
+            (message) line-end))
     :modes python-mode
     :next-checkers ((warning . python-mypy)))
-
   ;; Add ruff to the list of checkers
   (add-to-list 'flycheck-checkers 'python-ruff)
-
-  ;; Set ruff executable (prefer system, fallback to uv run)
-  (setq flycheck-python-ruff-executable 
+  ;; Set ruff executable
+  (setq flycheck-python-ruff-executable
         (or (executable-find "ruff")
-            (expand-file-name "~/bin/ruff")
+            (expand-file-name "~/.local/bin/ruff")
             "ruff")))
 
 ;; Enable flycheck in Python mode
 (add-hook 'python-mode-hook 'flycheck-mode)
 
-;;; 4. LSP Configuration with ruff-lsp
-(with-eval-after-load 'lsp-mode
-  ;; Register ruff-lsp server
-  (lsp-register-client
-   (make-lsp-client :new-connection (lsp-stdio-connection 
-                                     (lambda () 
-                                       (or (executable-find "ruff-lsp")
-                                           (expand-file-name "~/bin/ruff-lsp")
-                                           "ruff-lsp")))
-                    :activation-fn (lsp-activate-on "python")
-                    :server-id 'ruff-lsp
-                    :priority 10
-                    :add-on? t))
+;;; 4. Use pyright for Python LSP
+(use-package lsp-pyright
+  :ensure t
+  :hook (python-mode . (lambda ()
+                         (require 'lsp-pyright)
+                         (lsp-deferred)))
+  :config
+  ;; Look for .venv in project root
+  (setq lsp-pyright-venv-path ".")
+  (setq lsp-pyright-use-library-code-for-types t))
 
-  ;; Configure ruff-lsp settings (Black uses 88 line length)
-  (lsp-register-custom-settings
-   '(("ruff.lint.enable" t t)
-     ("ruff.format.enable" t t)
-     ("ruff.lint.args" ["--line-length=88"] t)
-     ("ruff.format.args" ["--line-length=88"] t)))
+;; Auto-detect and configure .venv
+(defun my/setup-python-lsp ()
+  "Configure Python LSP with project venv."
+  (when-let* ((project-root (locate-dominating-file default-directory "pyproject.toml"))
+              (venv-path (expand-file-name ".venv" project-root)))
+    (when (file-exists-p venv-path)
+      (setq-local lsp-pyright-python-executable-cmd
+                  (expand-file-name "bin/python" venv-path))
+      (setenv "VIRTUAL_ENV" venv-path))))
 
-  ;; Disable other Python language servers
-  (setq lsp-disabled-clients '(pylsp pyls mspyls))
+(add-hook 'python-mode-hook #'my/setup-python-lsp)
+;; Auto-detect .venv in project root
+(add-hook 'python-mode-hook
+          (lambda ()
+            (when-let ((venv-dir (locate-dominating-file default-directory ".venv")))
+              (setenv "VIRTUAL_ENV" (expand-file-name ".venv" venv-dir))
+              (setq python-shell-virtualenv-root (expand-file-name ".venv" venv-dir)))))
 
-  ;; Python-specific LSP settings
-  (setq lsp-python-ms-auto-install-server nil)
-  (setq lsp-pylsp-server-command nil))
 
 ;; Helper function to setup Python environment for LSP
 (defun my/setup-python-lsp ()
@@ -1341,11 +1350,11 @@ Returns a cons cell (INTERPRETER . ARGS) or just INTERPRETER string."
           ;; If it's a cons cell (command . args), set both interpreter and args
           (progn
             (setq-local python-shell-interpreter (car python-executable))
-            (setq-local python-shell-interpreter-args 
-                       (mapconcat 'identity (cdr python-executable) " "))
-            (message "Using Python: %s %s" 
-                    (car python-executable)
-                    (mapconcat 'identity (cdr python-executable) " ")))
+            (setq-local python-shell-interpreter-args
+                        (mapconcat 'identity (cdr python-executable) " "))
+            (message "Using Python: %s %s"
+                     (car python-executable)
+                     (mapconcat 'identity (cdr python-executable) " ")))
         ;; If it's just a string, set only the interpreter
         (progn
           (setq-local python-shell-interpreter python-executable)
@@ -1359,7 +1368,7 @@ Returns a cons cell (INTERPRETER . ARGS) or just INTERPRETER string."
 (defun my/ruff-command ()
   "Get the ruff command, checking multiple locations."
   (or (executable-find "ruff")
-      (let ((home-ruff (expand-file-name "~/bin/ruff")))
+      (let ((home-ruff (expand-file-name "~/.local/ruff")))
         (when (file-executable-p home-ruff)
           home-ruff))
       "ruff"))
@@ -1437,8 +1446,8 @@ Returns a cons cell (INTERPRETER . ARGS) or just INTERPRETER string."
   (define-key python-mode-map (kbd "C-c r c")
               (lambda ()
                 (interactive)
-                (compile (format "%s check %s" (my/ruff-command) 
-                               (buffer-file-name))))))
+                (compile (format "%s check %s" (my/ruff-command)
+                                 (buffer-file-name))))))
 
 ;;; 8. Project Management Integration
 ;; Add pyproject.toml as a project root indicator
@@ -1447,7 +1456,7 @@ Returns a cons cell (INTERPRETER . ARGS) or just INTERPRETER string."
                (lambda (dir)
                  (when-let ((root (locate-dominating-file dir "pyproject.toml")))
                    (cons 'pyproject root))))
-  
+
   ;; Define how to get the root from our custom project type
   (cl-defmethod project-root ((project (head pyproject)))
     (cdr project)))
@@ -1519,310 +1528,6 @@ Returns a cons cell (INTERPRETER . ARGS) or just INTERPRETER string."
    indent-bars-color-by-depth '(:palette ("red" "green" "orange" "cyan") :blend 1)
    indent-bars-highlight-current-depth '(:blend 0.5))
   :hook ((python-base-mode) . indent-bars-mode))
-
-
-
-
-
-
-
-
-;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; ;; 9.1 PYTHON
-;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-;; ;;; 0. Ensure PATH includes ~/bin (for uv)
-;; ;; This fixes the issue where GUI-launched Emacs doesn't inherit shell PATH
-;; (use-package exec-path-from-shell
-;;   :ensure t
-;;   :config
-;;   (when (memq window-system '(x pclone))
-;;     (exec-path-from-shell-initialize)))
-
-;; ;; Alternatively, manually add ~/bin to exec-path if you don't want the package
-;; ;; (add-to-list 'exec-path (expand-file-name "~/bin"))
-;; ;; (setenv "PATH" (concat (expand-file-name "~/bin") ":" (getenv "PATH")))
-
-;; ;;; 1. Basic Python settings
-;; ;; Set indentation level (Black uses 4 spaces)
-;; (setq python-indent-offset 4)
-
-;; ;;; 2. Python Environment Detection (uv-aware)
-;; ;; Helper function to find Python executable (uv-aware)
-;; (defun my/find-python-executable ()
-;;   "Find the appropriate Python executable, preferring uv environments.
-;; Returns a cons cell (INTERPRETER . ARGS) or just INTERPRETER string."
-;;   (let ((uv-path (or (executable-find "uv")
-;;                      (expand-file-name "~/bin/uv"))))
-;;     (cond
-;;      ;; If we're in a project with pyproject.toml and uv is available
-;;      ((and (locate-dominating-file default-directory "pyproject.toml")
-;;            (file-executable-p uv-path))
-;;       (cons uv-path '("run" "python")))
-;;      ;; If .venv exists in project, use it directly
-;;      ((and (project-current)
-;;            (file-exists-p (expand-file-name ".venv/bin/python" 
-;;                                            (project-root (project-current)))))
-;;       (expand-file-name ".venv/bin/python" (project-root (project-current))))
-;;      ;; Fall back to system python
-;;      (t (or (executable-find "python3") (executable-find "python"))))))
-
-;; ;;; 3. Ruff Integration with Flycheck
-;; (with-eval-after-load 'flycheck
-;;   ;; Define ruff checker
-;;   (flycheck-define-checker python-ruff
-;;     "A Python syntax and style checker using ruff."
-;;     :command ("ruff" "check"
-;;               "--output-format" "text"
-;;               "--stdin-filename" source-original
-;;               "-")
-;;     :standard-input t
-;;     :working-directory flycheck-python-find-project-root-function
-;;     :error-patterns
-;;     ((error line-start (file-name) ":" line ":" (optional column ":") " " 
-;;             (id (one-or-more (not (any ":")))) ":" (message) line-end))
-;;     :modes python-mode
-;;     :next-checkers ((warning . python-mypy)))
-
-;;   ;; Add ruff to the list of checkers
-;;   (add-to-list 'flycheck-checkers 'python-ruff)
-
-;;   ;; Set ruff executable (prefer system, fallback to uv run)
-;;   (setq flycheck-python-ruff-executable 
-;;         (or (executable-find "ruff")
-;;             (expand-file-name "~/bin/ruff")
-;;             "ruff")))
-
-;; ;; Enable flycheck in Python mode
-;; (add-hook 'python-mode-hook 'flycheck-mode)
-
-;; ;;; 4. LSP Configuration with ruff-lsp
-;; (with-eval-after-load 'lsp-mode
-;;   ;; Register ruff-lsp server
-;;   (lsp-register-client
-;;    (make-lsp-client :new-connection (lsp-stdio-connection 
-;;                                      (lambda () 
-;;                                        (or (executable-find "ruff-lsp")
-;;                                            (expand-file-name "~/bin/ruff-lsp")
-;;                                            "ruff-lsp")))
-;;                     :activation-fn (lsp-activate-on "python")
-;;                     :server-id 'ruff-lsp
-;;                     :priority 10
-;;                     :add-on? t))
-
-;;   ;; Configure ruff-lsp settings (Black uses 88 line length)
-;;   (lsp-register-custom-settings
-;;    '(("ruff.lint.enable" t t)
-;;      ("ruff.format.enable" t t)
-;;      ("ruff.lint.args" ["--line-length=88"] t)
-;;      ("ruff.format.args" ["--line-length=88"] t)))
-
-;;   ;; Disable other Python language servers
-;;   (setq lsp-disabled-clients '(pylsp pyls mspyls))
-
-;;   ;; Python-specific LSP settings
-;;   (setq lsp-python-ms-auto-install-server nil)
-;;   (setq lsp-pylsp-server-command nil))
-
-;; ;; Helper function to setup Python environment for LSP
-;; (defun my/setup-python-lsp ()
-;;   "Set up Python LSP environment with uv-aware detection."
-;;   (interactive)
-;;   (let ((python-executable (my/find-python-executable)))
-;;     (when python-executable
-;;       (if (consp python-executable)
-;;           ;; If it's a cons cell (command . args), set both interpreter and args
-;;           (progn
-;;             (setq-local python-shell-interpreter (car python-executable))
-;;             (setq-local python-shell-interpreter-args 
-;;                        (mapconcat 'identity (cdr python-executable) " "))
-;;             (message "Using Python: %s %s" 
-;;                     (car python-executable)
-;;                     (mapconcat 'identity (cdr python-executable) " ")))
-;;         ;; If it's just a string, set only the interpreter
-;;         (progn
-;;           (setq-local python-shell-interpreter python-executable)
-;;           (setq-local python-shell-interpreter-args "")
-;;           (message "Using Python: %s" python-executable))))))
-
-;; ;; Add hook to setup Python LSP environment
-;; (add-hook 'python-mode-hook #'my/setup-python-lsp)
-
-;; ;;; 5. Ruff Formatting Functions
-;; (defun my/ruff-command ()
-;;   "Get the ruff command, checking multiple locations."
-;;   (or (executable-find "ruff")
-;;       (let ((home-ruff (expand-file-name "~/bin/ruff")))
-;;         (when (file-executable-p home-ruff)
-;;           home-ruff))
-;;       "ruff"))
-
-;; (defun my/ruff-format-buffer ()
-;;   "Format the current Python buffer with ruff (Black-compatible)."
-;;   (interactive)
-;;   (when (derived-mode-p 'python-mode)
-;;     (let* ((file-name (buffer-file-name))
-;;            (ruff-cmd (my/ruff-command))
-;;            (temp-buffer (generate-new-buffer " *ruff-format-temp*")))
-;;       (unwind-protect
-;;           (when file-name
-;;             ;; Run ruff format with Black-compatible settings
-;;             (if (zerop (call-process ruff-cmd nil temp-buffer nil
-;;                                      "format" "--line-length=88" file-name))
-;;                 (progn
-;;                   (revert-buffer t t t)
-;;                   (message "Formatted with ruff (Black style)"))
-;;               (with-current-buffer temp-buffer
-;;                 (message "Ruff format failed: %s" (buffer-string)))))
-;;         (kill-buffer temp-buffer)))))
-
-;; (defun my/ruff-organize-imports ()
-;;   "Organize imports in the current Python buffer with ruff."
-;;   (interactive)
-;;   (when (derived-mode-p 'python-mode)
-;;     (let* ((file-name (buffer-file-name))
-;;            (ruff-cmd (my/ruff-command))
-;;            (temp-buffer (generate-new-buffer " *ruff-isort-temp*")))
-;;       (unwind-protect
-;;           (when file-name
-;;             ;; Run ruff check with --fix for import sorting (isort-compatible)
-;;             (if (zerop (call-process ruff-cmd nil temp-buffer nil
-;;                                      "check" "--select=I" "--fix" file-name))
-;;                 (progn
-;;                   (revert-buffer t t t)
-;;                   (message "Imports organized with ruff"))
-;;               (with-current-buffer temp-buffer
-;;                 (message "Ruff organize imports failed: %s" (buffer-string)))))
-;;         (kill-buffer temp-buffer)))))
-
-;; (defun my/ruff-format-and-organize ()
-;;   "Format Python buffer and organize imports with ruff (Black style)."
-;;   (interactive)
-;;   (when (derived-mode-p 'python-mode)
-;;     (my/ruff-organize-imports)
-;;     (my/ruff-format-buffer)))
-
-;; ;;; 6. Format on Save (Optional)
-;; ;; Toggle function for format-on-save
-;; (defun my/toggle-ruff-format-on-save ()
-;;   "Toggle ruff format-on-save for Python buffers."
-;;   (interactive)
-;;   (if (member #'my/ruff-format-and-organize before-save-hook)
-;;       (progn
-;;         (remove-hook 'before-save-hook #'my/ruff-format-and-organize t)
-;;         (message "Ruff format-on-save disabled"))
-;;     (add-hook 'before-save-hook #'my/ruff-format-and-organize nil t)
-;;     (message "Ruff format-on-save enabled")))
-
-;; ;;; 7. Python Mode Keybindings
-;; (with-eval-after-load 'python
-;;   ;; Format buffer with Black-compatible ruff
-;;   (define-key python-mode-map (kbd "M-3") #'my/ruff-format-and-organize)
-
-;;   ;; Individual actions
-;;   (define-key python-mode-map (kbd "C-c r f") #'my/ruff-format-buffer)
-;;   (define-key python-mode-map (kbd "C-c r i") #'my/ruff-organize-imports)
-
-;;   ;; Toggle format-on-save
-;;   (define-key python-mode-map (kbd "C-c r t") #'my/toggle-ruff-format-on-save)
-
-;;   ;; Run ruff check manually
-;;   (define-key python-mode-map (kbd "C-c r c")
-;;               (lambda ()
-;;                 (interactive)
-;;                 (compile (format "%s check %s" (my/ruff-command) 
-;;                                (buffer-file-name))))))
-
-;; ;;; 8. Project Management Integration
-;; ;; Add pyproject.toml as a project root indicator
-;; (with-eval-after-load 'project
-;;   (add-to-list 'project-find-functions
-;;                (lambda (dir)
-;;                  (when-let ((root (locate-dominating-file dir "pyproject.toml")))
-;;                    (cons 'pyproject root))))
-  
-;;   ;; Define how to get the root from our custom project type
-;;   (cl-defmethod project-root ((project (head pyproject)))
-;;     (cdr project)))
-
-;; ;; UV command helpers with proper path handling
-;; (defun my/uv-command ()
-;;   "Get the uv command, checking multiple locations."
-;;   (or (executable-find "uv")
-;;       (let ((home-uv (expand-file-name "~/bin/uv")))
-;;         (when (file-executable-p home-uv)
-;;           home-uv))
-;;       "uv"))
-
-;; (defun my/uv-add-dependency ()
-;;   "Add a dependency using uv."
-;;   (interactive)
-;;   (let ((dep (read-string "Dependency to add: "))
-;;         (uv-cmd (my/uv-command)))
-;;     (when (and dep (not (string-empty-p dep)))
-;;       (compile (format "%s add %s" uv-cmd dep)))))
-
-;; (defun my/uv-add-dev-dependency ()
-;;   "Add a dev dependency using uv."
-;;   (interactive)
-;;   (let ((dep (read-string "Dev dependency to add: "))
-;;         (uv-cmd (my/uv-command)))
-;;     (when (and dep (not (string-empty-p dep)))
-;;       (compile (format "%s add --dev %s" uv-cmd dep)))))
-
-;; (defun my/uv-sync ()
-;;   "Sync dependencies using uv."
-;;   (interactive)
-;;   (compile (format "%s sync" (my/uv-command))))
-
-;; (defun my/uv-run-script ()
-;;   "Run a script using uv run."
-;;   (interactive)
-;;   (let ((script (read-string "Script to run: " (buffer-file-name)))
-;;         (uv-cmd (my/uv-command)))
-;;     (when (and script (not (string-empty-p script)))
-;;       (compile (format "%s run %s" uv-cmd script)))))
-
-;; ;; Additional keybindings for uv commands
-;; (with-eval-after-load 'python
-;;   (define-key python-mode-map (kbd "C-c u a") #'my/uv-add-dependency)
-;;   (define-key python-mode-map (kbd "C-c u d") #'my/uv-add-dev-dependency)
-;;   (define-key python-mode-map (kbd "C-c u s") #'my/uv-sync)
-;;   (define-key python-mode-map (kbd "C-c u r") #'my/uv-run-script))
-
-;; ;;; 9. Visual Indentation Guides for Python
-;; (use-package indent-bars
-;;   :defer t
-;;   :straight (indent-bars :type git :host github :repo "jdtsmith/indent-bars")
-;;   :custom
-;;   (indent-bars-treesit-support t)
-;;   (indent-bars-no-descend-string t)
-;;   (indent-bars-treesit-ignore-blank-lines-types '("module"))
-;;   (indent-bars-treesit-wrap '((python argument_list parameters
-;;                                       list list_comprehension
-;;                                       dictionary dictionary_comprehension
-;;                                       parenthesized_expression subscript)))
-;;   :config
-;;   (setq
-;;    indent-bars-color '(highlight :face-bg t :blend 0.3)
-;;    indent-bars-prefer-character 1
-;;    indent-bars-width-frac 0.9
-;;    indent-bars-pad-frac 0.2
-;;    indent-bars-zigzag 0.1
-;;    indent-bars-color-by-depth '(:palette ("red" "green" "orange" "cyan") :blend 1)
-;;    indent-bars-highlight-current-depth '(:blend 0.5))
-;;   :hook ((python-base-mode) . indent-bars-mode))
-
-
-
-
-
-
-
-
-
-
-
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -2356,7 +2061,7 @@ or 'LaTeX-indent-level-item-continuation' if the latter is bound."
 
 ;; These settings enhance the overall Emacs experience
 (setq-default
-  ad-redefinition-action 'accept                       ; Silence warnings for redefinition uv-ruff-migration
+ ad-redefinition-action 'accept                       ; Silence warnings for redefinition uv-ruff-migration
  cursor-in-non-selected-windows t                     ; Hide the cursor in inactive windows
  display-time-default-load-average nil                ; Don't display load average
  help-window-select t                                 ; Focus new help windows when opened
