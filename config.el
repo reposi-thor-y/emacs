@@ -1155,87 +1155,79 @@ Skips indentation for certain file types where it might cause issues."
 ;; 9. LANGUAGE SUPPORT
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; Global LSP configuration - used by all language modes
-(use-package lsp-mode
-  :ensure t
-  :commands (lsp lsp-deferred)
-  :hook ((python-mode . lsp-deferred)
-         (c++-mode . lsp-deferred)
-         (latex-mode . lsp-deferred)
-         (markdown-mode . lsp-deferred)
-         (sh-mode . lsp-deferred)
-         (zshrc-mode . lsp-deferred))
-  :init
-  ;; Performance optimizations
-  (setq lsp-enable-file-watchers nil)           ;; Disable file watchers (better performance)
-  (setq lsp-idle-delay 0.500)                   ;; How often to refresh
-  (setq lsp-log-io nil)                         ;; Disable logging for better performance
-  (setq lsp-completion-provider :capf)          ;; Use capf for completion
-  (setq lsp-prefer-flymake nil)                 ;; Use flycheck instead of flymake
-  (setq read-process-output-max (* 1024 1024))  ;; Increase read output for better performance
+;; Eglot - built-in LSP client (Emacs 29+)
+;; Much simpler than lsp-mode, handles Python, Markdown, LaTeX, and shell scripts
 
-  ;; Features - disable intrusive UI elements
-  (setq lsp-enable-symbol-highlighting t)
-  (setq lsp-enable-indentation nil)             ;; Don't use LSP's indentation
-  (setq lsp-enable-on-type-formatting nil)      ;; Disable automatic formatting
-  (setq lsp-signature-auto-activate nil)        ;; Don't show signature help automatically
-  (setq lsp-signature-render-documentation nil) ;; Don't render doc with signature
-  (setq lsp-eldoc-hook nil)                     ;; Disable eldoc for LSP (can be noisy)
-  (setq lsp-modeline-code-actions-enable nil)   ;; Disable code actions on modeline
-  (setq lsp-modeline-diagnostics-enable nil)    ;; Disable diagnostics on modeline
-  (setq lsp-headerline-breadcrumb-enable nil)   ;; Disable breadcrumbs in header line
-
+(use-package eglot
+  :ensure nil  ;; Built into Emacs 29+
+  :hook ((python-mode . eglot-ensure)
+         (LaTeX-mode . eglot-ensure)     ;; AUCTeX uses LaTeX-mode (capital L)
+         (markdown-mode . eglot-ensure)
+         (sh-mode . eglot-ensure)
+         (zshrc-mode . eglot-ensure))    ;; Custom zsh config mode
   :config
-  ;; Diagnostics setup
-  (setq lsp-diagnostics-provider :flycheck)     ;; Use flycheck for displaying diagnostics
+  ;; Performance: increase read output for better performance
+  (setq read-process-output-max (* 1024 1024))  ;; 1MB
 
-  ;; Python-specific LSP configuration
-  (setq lsp-pylsp-plugins-flake8-enabled t)     ;; Enable flake8 plugin
-  (setq lsp-pylsp-plugins-flake8-config nil)    ;; Use project's .flake8 file
+  ;; Python: use python-lsp-server (pylsp) with Jedi for completions
+  ;; Install: pip install python-lsp-server python-lsp-ruff
+  ;; This gives you: Jedi completions + Ruff linting/formatting in one server
+  (add-to-list 'eglot-server-programs
+               '(python-mode . ("pylsp")))
 
-  ;; Disable redundant linters to avoid conflicts with flake8
-  (setq lsp-pylsp-plugins-pycodestyle-enabled nil)  ;; Let flake8 handle style
-  (setq lsp-pylsp-plugins-mccabe-enabled nil)       ;; Let flake8 handle complexity
-  (setq lsp-pylsp-plugins-pyflakes-enabled nil)     ;; Let flake8 handle basic checks
+  ;; Configure pylsp via Eglot workspace configuration
+  (setq-default eglot-workspace-configuration
+                '(:pylsp (:plugins (:jedi_completion (:enabled t
+                                                       :include_params t
+                                                       :include_class_objects t
+                                                       :fuzzy t)
+                                    :jedi_hover (:enabled t)
+                                    :jedi_references (:enabled t)
+                                    :jedi_signature_help (:enabled t)
+                                    :jedi_symbols (:enabled t
+                                                   :all_scopes t)
+                                    :ruff (:enabled t
+                                           :format (:enabled t)
+                                           :lineLength 88)
+                                    ;; Disable other linters to avoid conflicts with Ruff
+                                    :pycodestyle (:enabled :json-false)
+                                    :flake8 (:enabled :json-false)
+                                    :mccabe (:enabled :json-false)
+                                    :pyflakes (:enabled :json-false)
+                                    :pylint (:enabled :json-false)
+                                    :yapf (:enabled :json-false)
+                                    :autopep8 (:enabled :json-false)
+                                    :black (:enabled :json-false)))))
 
-  ;; Configure docstring checking
-  (setq lsp-pylsp-plugins-pydocstyle-enabled nil)   ;; Let flake8 handle docstrings
+  ;; Make bash-language-server work with zshrc-mode too
+  (add-to-list 'eglot-server-programs
+               '(zshrc-mode . ("bash-language-server" "start")))
 
-  ;; Add LSP restart function for when config files change
-  (defun restart-lsp-server ()
-    "Restart the LSP server for the current project."
-    (interactive)
-    (lsp-workspace-restart (lsp--session-workspace (lsp-session) (lsp--buffer-uri))))
+  ;; Eglot already knows about these servers (no config needed):
+  ;; - texlab for LaTeX/LaTeX-mode
+  ;; - marksman for Markdown
+  ;; - bash-language-server for sh-mode
 
-  ;; Add keybinding for restarting LSP
-  (define-key lsp-mode-map (kbd "C-c C-l r") 'restart-lsp-server))
+  ;; Disable intrusive UI elements (keep it minimal)
+  (setq eglot-autoshutdown t)           ;; Shutdown server when last buffer is killed
+  (setq eglot-sync-connect nil)         ;; Don't block on connection
 
-;; LSP UI enhancements - apply to all LSP instances
-(use-package lsp-ui
-  :after lsp-mode
-  :commands lsp-ui-mode
-  :config
-  (setq lsp-ui-doc-enable nil                   ;; Disable documentation popup
-        lsp-ui-sideline-enable nil))            ;; Disable sideline
+  ;; Keybindings
+  (define-key eglot-mode-map (kbd "C-c l r") 'eglot-rename)
+  (define-key eglot-mode-map (kbd "C-c l a") 'eglot-code-actions)
+  (define-key eglot-mode-map (kbd "C-c l f") 'eglot-format))
 
-;; Tree view for LSP - used by all LSP instances
-(use-package lsp-treemacs
-  :defer t
-  :commands lsp-treemacs-errors-list)
+;; Disable Flycheck when Eglot is active (Eglot provides diagnostics via Flymake)
+(with-eval-after-load 'flycheck
+  (add-hook 'eglot-managed-mode-hook
+            (lambda ()
+              (when (derived-mode-p 'python-mode 'LaTeX-mode 'markdown-mode 'sh-mode 'zshrc-mode)
+                (flycheck-mode -1)))))
 
-;; Debugging helper function for any language
-(defun force-lsp-for-current-buffer ()
-  "Force LSP to start for the current buffer regardless of file type."
-  (interactive)
-  (let ((lsp-auto-guess-root t))
-    (lsp)))
-
-;; Disable Flycheck's flake8 checker to avoid duplication with LSP
-;; (with-eval-after-load 'flycheck
-;; (setq-default flycheck-disabled-checkers '(python-flake8)))
-
-;; Turn off LSP debugging (was previously enabled)
-(setq lsp-log-io nil)
+;; Optional: Auto-format Python on save with Ruff
+(add-hook 'python-mode-hook
+          (lambda ()
+            (add-hook 'before-save-hook 'eglot-format-buffer nil t)))
 
 
 
@@ -1281,69 +1273,10 @@ Returns a cons cell (INTERPRETER . ARGS) or just INTERPRETER string."
      (t (or (executable-find "python3") (executable-find "python"))))))
 
 
-;;; 3. Ruff Integration with Flycheck
-(with-eval-after-load 'flycheck
-  ;; Define ruff checker
-  (flycheck-define-checker python-ruff
-    "A Python syntax and style checker using ruff."
-    :command ("ruff" "check"
-              "--output-format" "concise"
-              "--stdin-filename" source-original
-              "-")
-    :standard-input t
-    :working-directory (lambda (_) (or (locate-dominating-file default-directory "pyproject.toml")
-                                       (locate-dominating-file default-directory ".git")
-                                       default-directory))
-    :error-patterns
-    ((error line-start (file-name) ":" line ":" (optional column ":") " "
-            (message) line-end))
-    :modes python-mode
-    :next-checkers ((warning . python-mypy)))
-  ;; Add ruff to the list of checkers
-  (add-to-list 'flycheck-checkers 'python-ruff)
-  ;; Set ruff executable
-  (setq flycheck-python-ruff-executable
-        (or (executable-find "ruff")
-            (expand-file-name "~/.local/bin/ruff")
-            "ruff")))
-
-;; Enable flycheck in Python mode
-(add-hook 'python-mode-hook 'flycheck-mode)
-
-;;; 4. Use pyright for Python LSP
-(use-package lsp-pyright
-  :ensure t
-  :hook (python-mode . (lambda ()
-                         (require 'lsp-pyright)
-                         (lsp-deferred)))
-  :config
-  ;; Look for .venv in project root
-  (setq lsp-pyright-venv-path ".")
-  (setq lsp-pyright-use-library-code-for-types t))
-
-;; Auto-detect and configure .venv
-(defun my/setup-python-lsp ()
-  "Configure Python LSP with project venv."
-  (when-let* ((project-root (locate-dominating-file default-directory "pyproject.toml"))
-              (venv-path (expand-file-name ".venv" project-root)))
-    (when (file-exists-p venv-path)
-      (setq-local lsp-pyright-python-executable-cmd
-                  (expand-file-name "bin/python" venv-path))
-      (setenv "VIRTUAL_ENV" venv-path))))
-
-(add-hook 'python-mode-hook #'my/setup-python-lsp)
-;; Auto-detect .venv in project root
-(add-hook 'python-mode-hook
-          (lambda ()
-            (when-let ((venv-dir (locate-dominating-file default-directory ".venv")))
-              (setenv "VIRTUAL_ENV" (expand-file-name ".venv" venv-dir))
-              (setq python-shell-virtualenv-root (expand-file-name ".venv" venv-dir)))))
-
-
-;; Helper function to setup Python environment for LSP
-(defun my/setup-python-lsp ()
-  "Set up Python LSP environment with uv-aware detection."
-  (interactive)
+;;; 3. Python Environment Setup for uv
+;; Auto-detect .venv in project root and configure Python shell
+(defun my/setup-python-environment ()
+  "Set up Python environment with uv-aware detection for Python shell."
   (let ((python-executable (my/find-python-executable)))
     (when python-executable
       (if (consp python-executable)
@@ -1359,97 +1292,16 @@ Returns a cons cell (INTERPRETER . ARGS) or just INTERPRETER string."
         (progn
           (setq-local python-shell-interpreter python-executable)
           (setq-local python-shell-interpreter-args "")
-          (message "Using Python: %s" python-executable))))))
+          (message "Using Python: %s" python-executable)))))
+  ;; Also set VIRTUAL_ENV if .venv exists
+  (when-let ((venv-dir (locate-dominating-file default-directory ".venv")))
+    (setenv "VIRTUAL_ENV" (expand-file-name ".venv" venv-dir))
+    (setq python-shell-virtualenv-root (expand-file-name ".venv" venv-dir))))
 
-;; Add hook to setup Python LSP environment
-(add-hook 'python-mode-hook #'my/setup-python-lsp)
+;; Add hook to setup Python environment
+(add-hook 'python-mode-hook #'my/setup-python-environment)
 
-;;; 5. Ruff Formatting Functions
-(defun my/ruff-command ()
-  "Get the ruff command, checking multiple locations."
-  (or (executable-find "ruff")
-      (let ((home-ruff (expand-file-name "~/.local/ruff")))
-        (when (file-executable-p home-ruff)
-          home-ruff))
-      "ruff"))
-
-(defun my/ruff-format-buffer ()
-  "Format the current Python buffer with ruff (Black-compatible)."
-  (interactive)
-  (when (derived-mode-p 'python-mode)
-    (let* ((file-name (buffer-file-name))
-           (ruff-cmd (my/ruff-command))
-           (temp-buffer (generate-new-buffer " *ruff-format-temp*")))
-      (unwind-protect
-          (when file-name
-            ;; Run ruff format with Black-compatible settings
-            (if (zerop (call-process ruff-cmd nil temp-buffer nil
-                                     "format" "--line-length=88" file-name))
-                (progn
-                  (revert-buffer t t t)
-                  (message "Formatted with ruff (Black style)"))
-              (with-current-buffer temp-buffer
-                (message "Ruff format failed: %s" (buffer-string)))))
-        (kill-buffer temp-buffer)))))
-
-(defun my/ruff-organize-imports ()
-  "Organize imports in the current Python buffer with ruff."
-  (interactive)
-  (when (derived-mode-p 'python-mode)
-    (let* ((file-name (buffer-file-name))
-           (ruff-cmd (my/ruff-command))
-           (temp-buffer (generate-new-buffer " *ruff-isort-temp*")))
-      (unwind-protect
-          (when file-name
-            ;; Run ruff check with --fix for import sorting (isort-compatible)
-            (if (zerop (call-process ruff-cmd nil temp-buffer nil
-                                     "check" "--select=I" "--fix" file-name))
-                (progn
-                  (revert-buffer t t t)
-                  (message "Imports organized with ruff"))
-              (with-current-buffer temp-buffer
-                (message "Ruff organize imports failed: %s" (buffer-string)))))
-        (kill-buffer temp-buffer)))))
-
-(defun my/ruff-format-and-organize ()
-  "Format Python buffer and organize imports with ruff (Black style)."
-  (interactive)
-  (when (derived-mode-p 'python-mode)
-    (my/ruff-organize-imports)
-    (my/ruff-format-buffer)))
-
-;;; 6. Format on Save (Optional)
-;; Toggle function for format-on-save
-(defun my/toggle-ruff-format-on-save ()
-  "Toggle ruff format-on-save for Python buffers."
-  (interactive)
-  (if (member #'my/ruff-format-and-organize before-save-hook)
-      (progn
-        (remove-hook 'before-save-hook #'my/ruff-format-and-organize t)
-        (message "Ruff format-on-save disabled"))
-    (add-hook 'before-save-hook #'my/ruff-format-and-organize nil t)
-    (message "Ruff format-on-save enabled")))
-
-;;; 7. Python Mode Keybindings
-(with-eval-after-load 'python
-  ;; Format buffer with Black-compatible ruff
-  (define-key python-mode-map (kbd "M-3") #'my/ruff-format-and-organize)
-
-  ;; Individual actions
-  (define-key python-mode-map (kbd "C-c r f") #'my/ruff-format-buffer)
-  (define-key python-mode-map (kbd "C-c r i") #'my/ruff-organize-imports)
-
-  ;; Toggle format-on-save
-  (define-key python-mode-map (kbd "C-c r t") #'my/toggle-ruff-format-on-save)
-
-  ;; Run ruff check manually
-  (define-key python-mode-map (kbd "C-c r c")
-              (lambda ()
-                (interactive)
-                (compile (format "%s check %s" (my/ruff-command)
-                                 (buffer-file-name))))))
-
-;;; 8. Project Management Integration
+;;; 4. Project Management Integration
 ;; Add pyproject.toml as a project root indicator
 (with-eval-after-load 'project
   (add-to-list 'project-find-functions
@@ -1506,7 +1358,7 @@ Returns a cons cell (INTERPRETER . ARGS) or just INTERPRETER string."
   (define-key python-mode-map (kbd "C-c u s") #'my/uv-sync)
   (define-key python-mode-map (kbd "C-c u r") #'my/uv-run-script))
 
-;;; 9. Visual Indentation Guides for Python
+;;; 5. Visual Indentation Guides for Python
 (use-package indent-bars
   :defer t
   :straight (indent-bars :type git :host github :repo "jdtsmith/indent-bars")
@@ -1596,22 +1448,6 @@ Returns a cons cell (INTERPRETER . ARGS) or just INTERPRETER string."
   :bind (("C-c c f" . clang-format-buffer)
          ("C-c c r" . clang-format-region)))
 
-;; LSP configuration for C++ with clangd
-(with-eval-after-load 'lsp-mode
-  (add-to-list 'lsp-language-id-configuration '(c++-mode . "cpp"))
-
-  ;; Register clangd as the LSP server for C++
-  (lsp-register-client
-   (make-lsp-client :new-connection (lsp-stdio-connection
-                                     '("clangd" "--header-insertion=never"
-                                       "--completion-style=detailed"
-                                       "--background-index"
-                                       "--clang-tidy"
-                                       "--suggest-missing-includes"))
-                    :major-modes '(c++-mode c-mode)
-                    :priority -1
-                    :server-id 'clangd)))
-
 ;; --- Compilation settings ---
 (setq compile-command "cmake -B build -G Ninja && cmake --build build")
 (global-set-key (kbd "C-c C-c") 'compile)
@@ -1631,26 +1467,6 @@ Returns a cons cell (INTERPRETER . ARGS) or just INTERPRETER string."
 (add-to-list 'auto-mode-alist '("\\.zshenv\\'" . zshrc-mode))
 (add-to-list 'auto-mode-alist '("\\.zprofile\\'" . zshrc-mode))
 (add-to-list 'auto-mode-alist '("\\.zsh\\'" . sh-mode))
-
-;; Shell script LSP configuration
-(with-eval-after-load 'lsp-mode
-  ;; Configure bash-language-server
-  (setq lsp-bash-highlight-parsing-errors t)
-  (setq lsp-bash-explainshellendpoint "https://explainshell.com/api/explain")
-  (setq lsp-bash-cmd '("bash-language-server" "start"))
-
-  ;; Register bash-language-server for both sh-mode and zshrc-mode
-  (lsp-register-client
-   (make-lsp-client :new-connection (lsp-stdio-connection lsp-bash-cmd)
-                    :major-modes '(sh-mode zshrc-mode)
-                    :priority -1
-                    :server-id 'bash-ls
-                    :activation-fn (lambda (&rest _)
-                                     (executable-find (car lsp-bash-cmd))))))
-
-;; Add hook for the new mode to enable LSP
-(add-hook 'zshrc-mode-hook #'lsp-deferred)
-(add-hook 'sh-mode-hook #'lsp-deferred)
 
 ;; Ensure ShellCheck is available for enhanced diagnostics
 (with-eval-after-load 'flycheck
@@ -1771,16 +1587,6 @@ or 'LaTeX-indent-level-item-continuation' if the latter is bound."
   :config
   (company-auctex-init))
 
-;; LSP support through texlab
-(use-package lsp-latex
-  :defer t
-  :after tex
-  :hook ((LaTeX-mode . lsp)
-         (lsp-mode . lsp-enable-which-key-integration))
-  :config
-  (setq lsp-latex-texlab-executable "/usr/bin/texlab"
-        lsp-latex-build-on-save t))
-
 ;; Preview equations inline
 ;; (use-package math-preview
 ;;   :defer t
@@ -1820,10 +1626,7 @@ or 'LaTeX-indent-level-item-continuation' if the latter is bound."
     (setq markdown-command "/usr/local/bin/pandoc"))
    ;; Linux-specific configurations
    ((eq system-type 'gnu/linux)
-    (setq markdown-command "/usr/bin/pandoc")))
-  :hook (markdown-mode . lsp-deferred)
-  :config
-  (require 'lsp-marksman))
+    (setq markdown-command "/usr/bin/pandoc"))))
 
 (add-hook 'markdown-mode-hook
           (lambda ()
