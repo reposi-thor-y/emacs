@@ -5,9 +5,9 @@
 
 ;;; Code:
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; PACKAGE MANAGEMENT
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; Set repositories to use
 (setq package-archives '(("elpa" . "https://elpa.gnu.org/packages/")
@@ -49,9 +49,9 @@
     ;; Copy important shell environment variables
     (exec-path-from-shell-copy-envs '("PATH" "MANPATH" "LANG" "LC_ALL"))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; PERFORMANCE OPTIMIZATIONS
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; Better garbage collection strategy using gcmh
 (use-package gcmh
@@ -88,9 +88,9 @@
       (setq native-comp-eln-load-path
             (list (expand-file-name "eln-cache/" user-emacs-directory))))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; ESSENTIAL SETTINGS
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; Encoding
 (set-charset-priority 'unicode)
@@ -132,9 +132,9 @@
   (find-file (expand-file-name "init.el" user-emacs-directory)))
 (bind-key "C-c E" #'open-init-file)  ;; Changed to capital E to avoid conflict with elisp eval prefix
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; EDITING UTILITIES
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; Enhanced comment/uncomment function with multi-language support
 (defun comment-or-uncomment-line-or-region ()
@@ -280,5 +280,6 @@ Skips indentation for certain file types where it might cause issues."
 
 (global-set-key (kbd "M-2") 'indent-buffer-smart)
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (provide 'core)
 ;;; core.el ends here

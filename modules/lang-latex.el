@@ -5,8 +5,9 @@
 
 ;;; Code:
 
-;; 9.4 LATEX
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; LATEX CONFIGURATION
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; Set indentation for LaTeX lists
 (setq LaTeX-indent-level 2)
@@ -137,6 +138,6 @@ or 'LaTeX-indent-level-item-continuation' if the latter is bound."
   (add-to-list 'LaTeX-indent-environment-list '("enumerate" LaTeX-indent-item))
   (add-to-list 'LaTeX-indent-environment-list '("description" LaTeX-indent-item)))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (provide 'lang-latex)
 ;;; lang-latex.el ends here

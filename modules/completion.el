@@ -5,8 +5,9 @@
 
 ;;; Code:
 
-;; 7. COMPLETION FRAMEWORK
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; COMPLETION FRAMEWORK
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; Vertico for vertical completion UI
 (use-package vertico
@@ -118,7 +119,6 @@
       completion-category-overrides '((file (styles . (basic partial-completion))))
       completion-ignore-case t)
 
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (provide 'completion)
 ;;; completion.el ends here

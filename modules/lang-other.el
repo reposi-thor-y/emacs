@@ -5,8 +5,9 @@
 
 ;;; Code:
 
-;; 9.6 OTHER FILE FORMATS
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; OTHER FILE FORMATS & TEXT EDITING
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; Text mode enhancements
 (use-package wc-mode
@@ -194,12 +195,6 @@
 ;; (global-set-key (kbd "C-c C-j") 'my/format-with-jq)
 (global-set-key (kbd "C-c w") 'my/waybar-mode)
 
-
-
-
-
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (provide 'lang-other)
 ;;; lang-other.el ends here

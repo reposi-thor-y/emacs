@@ -5,8 +5,9 @@
 
 ;;; Code:
 
-;; 9.3 SHELL & ZSH
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; SHELL & ZSH CONFIGURATION
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; Specialized mode for zsh configuration files
 (define-derived-mode zshrc-mode sh-mode "Zsh-Config"
@@ -25,8 +26,6 @@
   (setq flycheck-shellcheck-follow-sources t))
 (add-hook 'sh-mode-hook 'flycheck-mode)
 
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (provide 'lang-shell)
 ;;; lang-shell.el ends here

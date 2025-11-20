@@ -5,8 +5,9 @@
 
 ;;; Code:
 
-;; 3. OS-SPECIFIC SETTINGS
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; OS-SPECIFIC SETTINGS
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; Define environment variables
 (defvar xdg-bin (getenv "XDG_BIN_HOME"))
@@ -54,9 +55,9 @@
   ;; Regular Emacs - setup once
   (add-hook 'after-init-hook #'my/setup-ui))
 
-
-;; 4. UI & APPEARANCE
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; UI & APPEARANCE
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; Enable current line highlighting
 (global-hl-line-mode 1)
@@ -203,6 +204,6 @@
             (setq fill-column 88)
             (setq display-fill-column-indicator-column 88)))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (provide 'ui)
 ;;; ui.el ends here

@@ -5,8 +5,9 @@
 
 ;;; Code:
 
-;; 10. MISC SETTINGS
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; MISCELLANEOUS SETTINGS
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; These settings enhance the overall Emacs experience
 (setq-default
@@ -32,6 +33,6 @@
 (show-paren-mode 1)                                   ; Show matching parenthesis
 (fset 'yes-or-no-p 'y-or-n-p)                         ; Replace yes/no prompts with y/n
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (provide 'misc)
 ;;; misc.el ends here

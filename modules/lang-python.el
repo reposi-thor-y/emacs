@@ -5,8 +5,9 @@
 
 ;;; Code:
 
-;; 9.1 PYTHON
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; PYTHON CONFIGURATION
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;;; 1. Basic Python settings
 ;; Set indentation level (Black uses 4 spaces)
@@ -133,7 +134,6 @@ Tries in order: uv (with pyproject.toml), .venv, system python."
    indent-bars-highlight-current-depth '(:blend 0.5))
   :hook ((python-base-mode) . indent-bars-mode))
 
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (provide 'lang-python)
 ;;; lang-python.el ends here

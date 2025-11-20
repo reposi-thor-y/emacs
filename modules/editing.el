@@ -5,8 +5,9 @@
 
 ;;; Code:
 
-;; 6. GENERAL FUNCTIONALITY
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; GENERAL FUNCTIONALITY
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; Indentation settings
 (setq-default indent-tabs-mode nil)
@@ -104,6 +105,6 @@
   (async-bytecomp-package-mode 1)
   (dired-async-mode 1))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (provide 'editing)
 ;;; editing.el ends here

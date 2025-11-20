@@ -5,8 +5,9 @@
 
 ;;; Code:
 
-;; 9.2 C++
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; C++ CONFIGURATION
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
 ;; --- Basic C++ settings with consistent 4-space indentation ---
@@ -74,6 +75,6 @@
 (setq compile-command "cmake -B build -G Ninja && cmake --build build")
 (global-set-key (kbd "C-c C-c") 'compile)
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (provide 'lang-cpp)
 ;;; lang-cpp.el ends here

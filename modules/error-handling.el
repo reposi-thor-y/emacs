@@ -5,9 +5,9 @@
 
 ;;; Code:
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; EXECUTABLE CHECKING
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defvar my/required-executables
   '(;; Language servers
@@ -56,5 +56,6 @@ EXE-INFO is (EXECUTABLE DESCRIPTION INSTALL-HINT)."
 ;; Manual check command
 (global-set-key (kbd "C-c h e") #'my/check-all-executables)
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (provide 'error-handling)
 ;;; error-handling.el ends here
