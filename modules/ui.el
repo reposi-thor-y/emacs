@@ -16,52 +16,43 @@
 ;; Resizing Emacs in KDE Plasma isn't nice without this:
 (setq frame-resize-pixelwise t)
 
-;; Theme setup function
-(defun my/setup-themes ()
-  "Set up themes based on display type."
-  (message "Setting up themes...")
+;; Unified theme and display setup
+(defun my/setup-ui ()
+  "Set up theme and fonts based on display type and system."
+  (interactive)
+  ;; Clear existing themes
   (mapc #'disable-theme custom-enabled-themes)
+
+  ;; Theme selection
   (if (display-graphic-p)
-      ;; GUI mode
-      (load-theme 'modus-vivendi-tinted t)
-    ;; Terminal mode
-    (progn
-      (load-theme 'tango-dark t)
-      ;; Terminal-specific face settings
-      (set-face-background 'hl-line "gray25")
-      (set-face-foreground 'hl-line nil)
-      (set-face-attribute 'hl-line nil :inherit nil)
-      ;; Vertico face settings for terminal
-      (with-eval-after-load 'vertico
-        (set-face-background 'vertico-current "gray25")
-        (set-face-attribute 'vertico-current nil :inherit nil)))))
+      ;; GUI mode - use modus-vivendi-tinted
+      (progn
+        (load-theme 'modus-vivendi-tinted t)
+        ;; System-specific fonts
+        (when (eq system-type 'gnu/linux)
+          (cond
+           ((string-equal (system-name) "rocky-ws")
+            (set-face-attribute 'default nil :font "SauceCodePro NFM" :height 120))
+           ((string-equal (system-name) "rocky-laptop")
+            (set-face-attribute 'default nil :font "Source Code Pro" :height 120)))))
+    ;; Terminal mode - use tango-dark with custom faces
+    (load-theme 'tango-dark t)
+    (set-face-background 'hl-line "gray25")
+    (set-face-foreground 'hl-line nil)
+    (set-face-attribute 'hl-line nil :inherit nil)
+    (with-eval-after-load 'vertico
+      (set-face-background 'vertico-current "gray25")
+      (set-face-attribute 'vertico-current nil :inherit nil))))
 
-;; System-specific GUI settings
-(defun my/setup-system-gui ()
-  "Configure system-specific GUI settings"
-  (when (display-graphic-p)
-    (cond
-     ;; Linux specific
-     ((eq system-type 'gnu/linux)
-      (cond
-       ((string-equal (system-name) "rocky-ws")
-        ;; (set-frame-size (selected-frame) 120 60)
-        ;; (set-frame-position (selected-frame) 400 0)
-        (set-face-attribute 'default nil :font "SauceCodePro NFM" :height 120))
-       ((string-equal (system-name) "rocky-laptop")
-        (set-face-attribute 'default nil :font "Source Code Pro" :height 120))
-       )))))
-
-;; Set up hooks
-(add-hook 'after-init-hook #'my/setup-themes)
-(add-hook 'window-setup-hook #'my/setup-system-gui)
-
-;; For daemon mode
-(add-hook 'after-make-frame-functions
-          (lambda (frame)
-            (with-selected-frame frame
-              (my/setup-themes)
-              (my/setup-system-gui))))
+;; Apply UI setup
+(if (daemonp)
+    ;; Daemon mode - setup for each new frame
+    (add-hook 'after-make-frame-functions
+              (lambda (frame)
+                (with-selected-frame frame
+                  (my/setup-ui))))
+  ;; Regular Emacs - setup once
+  (add-hook 'after-init-hook #'my/setup-ui))
 
 
 ;; 4. UI & APPEARANCE

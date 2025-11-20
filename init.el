@@ -11,6 +11,7 @@
 
 ;; Load modules in dependency order
 (require 'core)           ;; Core settings and package management
+(require 'error-handling) ;; Error handling for missing dependencies
 (require 'ui)             ;; UI, themes, and appearance
 (require 'completion)     ;; Completion frameworks
 (require 'editing)        ;; Editing enhancements

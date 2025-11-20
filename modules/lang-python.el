@@ -18,52 +18,39 @@
             (setq-local comint-output-filter-functions
                         (cons 'comint-truncate-buffer comint-output-filter-functions))))
 
-;;; 2. Python Environment Detection
-(defun my/find-python-executable ()
-  "Find the appropriate Python executable, preferring uv environments.
-Returns a cons cell (INTERPRETER . ARGS) or just INTERPRETER string."
-  (let ((uv-path (or (executable-find "uv")
-                     (expand-file-name "~/.local/bin/uv"))))
-    (cond
-     ;; If we're in a project with pyproject.toml and uv is available
-     ((and (locate-dominating-file default-directory "pyproject.toml")
-           (file-executable-p uv-path))
-      (cons uv-path '("run" "python")))
-     ;; If .venv exists in project, use it directly
-     ((and (project-current)
-           (file-exists-p (expand-file-name ".venv/bin/python"
-                                            (project-root (project-current)))))
-      (expand-file-name ".venv/bin/python" (project-root (project-current))))
-     ;; Fall back to system python
-     (t (or (executable-find "python3") (executable-find "python"))))))
-
-
-;;; 3. Python Environment Setup for uv
-;; Auto-detect .venv in project root and configure Python shell
+;;; 2. Python Environment Setup
 (defun my/setup-python-environment ()
-  "Set up Python environment with uv-aware detection for Python shell."
-  (let ((python-executable (my/find-python-executable)))
-    (when python-executable
-      (if (consp python-executable)
-          ;; If it's a cons cell (command . args), set both interpreter and args
-          (progn
-            (setq-local python-shell-interpreter (car python-executable))
-            (setq-local python-shell-interpreter-args
-                        (mapconcat 'identity (cdr python-executable) " "))
-            (message "Using Python: %s %s"
-                     (car python-executable)
-                     (mapconcat 'identity (cdr python-executable) " ")))
-        ;; If it's just a string, set only the interpreter
-        (progn
-          (setq-local python-shell-interpreter python-executable)
-          (setq-local python-shell-interpreter-args "")
-          (message "Using Python: %s" python-executable)))))
-  ;; Also set VIRTUAL_ENV if .venv exists
-  (when-let ((venv-dir (locate-dominating-file default-directory ".venv")))
-    (setenv "VIRTUAL_ENV" (expand-file-name ".venv" venv-dir))
-    (setq python-shell-virtualenv-root (expand-file-name ".venv" venv-dir))))
+  "Set up Python environment with uv-aware detection.
+Tries in order: uv (with pyproject.toml), .venv, system python."
+  (let* ((uv (or (executable-find "uv") "~/.local/bin/uv"))
+         (has-pyproject (locate-dominating-file default-directory "pyproject.toml"))
+         (venv-python (when (project-current)
+                        (expand-file-name ".venv/bin/python" (project-root (project-current)))))
+         (python nil)
+         (args ""))
 
-;; Add hook to setup Python environment
+    ;; Determine Python interpreter
+    (cond
+     ;; 1. Use uv if in a uv project
+     ((and has-pyproject (file-executable-p (expand-file-name uv)))
+      (setq python uv args "run python"))
+     ;; 2. Use .venv if it exists
+     ((and venv-python (file-exists-p venv-python))
+      (setq python venv-python))
+     ;; 3. Fall back to system Python
+     (t
+      (setq python (or (executable-find "python3") (executable-find "python") "python"))))
+
+    ;; Configure Python shell
+    (setq-local python-shell-interpreter python)
+    (setq-local python-shell-interpreter-args args)
+    (message "Python: %s %s" python (if (string-empty-p args) "" args))
+
+    ;; Set VIRTUAL_ENV if .venv exists
+    (when-let ((venv-dir (locate-dominating-file default-directory ".venv")))
+      (setenv "VIRTUAL_ENV" (expand-file-name ".venv" venv-dir))
+      (setq python-shell-virtualenv-root (expand-file-name ".venv" venv-dir)))))
+
 (add-hook 'python-mode-hook #'my/setup-python-environment)
 
 ;;; 4. Project Management Integration
