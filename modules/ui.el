@@ -13,15 +13,8 @@
 (defvar xdg-cache (getenv "XDG_CACHE_HOME"))
 (defvar xdg-config (getenv "XDG_CONFIG_HOME"))
 
-;; macOS specific settings
-;; (when (eq system-type 'darwin)
-;;   (setq mac-right-option-modifier 'nil)
-;;   (setq mac-command-modifier 'control
-;;         select-enable-clipboard t))
-
-
 ;; Resizing Emacs in KDE Plasma isn't nice without this:
-;; (setq frame-resize-pixelwise t)
+(setq frame-resize-pixelwise t)
 
 ;; Theme setup function
 (defun my/setup-themes ()
@@ -105,11 +98,6 @@
 (add-hook 'after-load-theme-hook 'my/set-hl-line-color)
 
 
-;; ;; Install mana theme collection
-;; (use-package ef-themes
-;;   :ensure t
-;;   :defer t)
-
 ;; Disable unused UI elements
 (custom-set-variables
  '(blink-cursor-mode nil)
@@ -143,6 +131,7 @@
 ;; Dimmer for inactive windows
 (use-package dimmer
   :ensure t
+  :defer 2  ;; Load after 2 seconds idle
   :config
   (setq dimmer-fraction 0.10)
   (setq dimmer-delay 0.01)
@@ -157,6 +146,7 @@
 
 (use-package ultra-scroll
   :straight (ultra-scroll :type git :host github :repo "jdtsmith/ultra-scroll")
+  :defer 1  ;; Load after 1 second idle
   :init
   (setq scroll-conservatively 101
         scroll-margin 0)
@@ -166,24 +156,6 @@
 ;; Icons for prettier UI
 (use-package all-the-icons
   :defer t)
-
-
-;; (use-package nerd-icons-completion
-;;   :ensure t
-;;   :after marginalia
-;;   :hook (marginalia-mode . nerd-icons-completion-marginalia-setup)
-;;   :config
-;;   ;; Only enable in GUI mode, not in terminal
-;;   (when (display-graphic-p)
-;;     (nerd-icons-completion-mode 1)))
-
-
-;; (use-package nerd-icons-completion
-;;   :ensure t
-;;   :after marginalia
-;;   :hook (marginalia-mode . nerd-icons-completion-marginalia-setup)
-;;   :config
-;;   (nerd-icons-completion-mode 1))
 
 (use-package all-the-icons-completion
   :after (marginalia all-the-icons)

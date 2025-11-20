@@ -117,33 +117,11 @@
   :after yasnippet)
 
 ;; Flycheck for syntax checking - global configuration
+;; Note: Flycheck is automatically disabled for buffers managed by Eglot
+;; (see lang-eglot.el). Language-specific settings are in their respective modules.
 (use-package flycheck
   :defer t
-  :hook (after-init . global-flycheck-mode)
-  :config
-  ;; Enable flycheck to search for config files in project directories
-  (setq flycheck-flake8-search-path 'nil) ; This allows searching up the directory tree
-  (setq-default flycheck-flake8-maximum-complexity 10)
-  (setq-default flycheck-flake8-maximum-line-length 100)
-
-  ;; Use project root for Python files when available
-  (setq flycheck-python-flake8-executable "flake8"))
-
-
-(advice-add 'flycheck-start-command-checker
-            :around (lambda (orig-fun checker callback)
-                      (when (eq checker 'python-flake8)
-                        (message "Running flake8 command: %s"
-                                 (mapconcat 'identity
-                                            (flycheck-checker-substituted-command checker)
-                                            " ")))
-                      (funcall orig-fun checker callback)))
-
-(advice-add 'flycheck-flake8-config-file
-            :around (lambda (orig-fun &rest args)
-                      (let ((result (apply orig-fun args)))
-                        (message "Flake8 config file: %s" (or result "None"))
-                        result)))
+  :hook (after-init . global-flycheck-mode))
 
 
 ;; Project management
@@ -177,13 +155,6 @@
   :config
   (setq dired-sidebar-use-term-integration t)
   (setq dired-sidebar-use-custom-font t))
-
-;; Ensure Python path is correctly set from shell
-(use-package exec-path-from-shell
-  :ensure t
-  :config
-  (when (memq window-system '(mac ns x))
-    (exec-path-from-shell-initialize)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (provide 'development)

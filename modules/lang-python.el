@@ -8,14 +8,6 @@
 ;; 9.1 PYTHON
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;; 0. Ensure PATH includes ~/.local/bin (for uv)
-;; This fixes the issue where GUI-launched Emacs doesn't inherit shell PATH
-(use-package exec-path-from-shell
-  :ensure t
-  :config
-  (when (memq window-system '(x pclone))
-    (exec-path-from-shell-initialize)))
-
 ;;; 1. Basic Python settings
 ;; Set indentation level (Black uses 4 spaces)
 (setq python-indent-offset 4)

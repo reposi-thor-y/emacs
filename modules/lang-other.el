@@ -63,15 +63,6 @@
      ("\\<\\(setopt\\|unsetopt\\)\\>"
       . font-lock-builtin-face))))
 
-;; Shell execution environment
-(use-package exec-path-from-shell
-  :ensure t
-  :init
-  (when (memq window-system '(mac ns x))
-    (exec-path-from-shell-initialize))
-  ;; Copy important shell environment variables
-  (exec-path-from-shell-copy-envs '("PATH" "MANPATH" "LANG" "LC_ALL")))
-
 ;; Terminal emulation with better zsh support
 (use-package vterm
   :defer t

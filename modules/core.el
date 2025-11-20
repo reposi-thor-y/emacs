@@ -39,6 +39,16 @@
 (require 'package)
 (package-initialize)
 
+;; Ensure PATH is inherited from shell (needed for GUI Emacs)
+(use-package exec-path-from-shell
+  :ensure t
+  :demand t  ;; Load immediately
+  :config
+  (when (memq window-system '(mac ns x pclone))
+    (exec-path-from-shell-initialize)
+    ;; Copy important shell environment variables
+    (exec-path-from-shell-copy-envs '("PATH" "MANPATH" "LANG" "LC_ALL"))))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; PERFORMANCE OPTIMIZATIONS
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
