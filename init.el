@@ -9,6 +9,14 @@
 ;; Add modules directory to load path
 (add-to-list 'load-path (expand-file-name "modules" user-emacs-directory))
 
+;; Set initial frame size (in characters)
+(push '(width . 120) default-frame-alist)
+(push '(height . 67) default-frame-alist)
+
+;; Or set initial position too
+(push '(left . 800) default-frame-alist)
+(push '(top . 30) default-frame-alist)
+
 ;; Load modules in dependency order
 (require 'core)           ;; Core settings and package management
 (require 'error-handling) ;; Error handling for missing dependencies

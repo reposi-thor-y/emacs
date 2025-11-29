@@ -35,10 +35,6 @@
 (setq straight-use-package-by-default t)
 (setq straight-check-for-modifications '(find-when-checking))
 
-;; Set up package.el to work with straight.el
-(require 'package)
-(package-initialize)
-
 ;; Ensure PATH is inherited from shell (needed for GUI Emacs)
 (use-package exec-path-from-shell
   :ensure t
