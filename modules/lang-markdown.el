@@ -15,6 +15,9 @@
   :mode (("README\\.md\\'" . gfm-mode)
          ("\\.md\\'" . markdown-mode)
          ("\\.markdown\\'" . markdown-mode))
+  :bind (:map markdown-mode-map
+         ("<backtab>" . markdown-outdent-region)
+         ("<C-tab>" . markdown-shifttab))
   :init
   ;; Pandoc is located at different places:
   (cond
@@ -23,7 +26,14 @@
     (setq markdown-command "/usr/local/bin/pandoc"))
    ;; Linux-specific configurations
    ((eq system-type 'gnu/linux)
-    (setq markdown-command "/usr/bin/pandoc"))))
+    (setq markdown-command "/usr/bin/pandoc")))
+  :config
+  (defun markdown-outdent-region ()
+    "Decrease indentation of current line or region."
+    (interactive)
+    (if (use-region-p)
+        (indent-rigidly (region-beginning) (region-end) (- tab-width))
+      (indent-rigidly (line-beginning-position) (line-end-position) (- tab-width)))))
 
 (add-hook 'markdown-mode-hook
           (lambda ()

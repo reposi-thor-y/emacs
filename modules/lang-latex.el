@@ -59,6 +59,9 @@ or 'LaTeX-indent-level-item-continuation' if the latter is bound."
   :init
   (setq-default TeX-engine 'luatex)  ; Set default engine
   :config
+  (setq font-latex-fontify-sectioning 'color)
+  (setq TeX-view-program-selection '((output-pdf "PDF Tools")))
+  (add-hook 'TeX-after-compilation-finished-functions #'TeX-revert-document-buffer)
   (setq TeX-auto-save t
         TeX-parse-self t
         TeX-master nil

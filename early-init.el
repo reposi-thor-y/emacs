@@ -52,6 +52,12 @@
 (push '(tool-bar-lines . 0) default-frame-alist)
 (push '(vertical-scroll-bars) default-frame-alist)
 
+;; Initial frame size and position
+(push '(width . 120) default-frame-alist)
+(push '(height . 60) default-frame-alist)
+(push '(left . 800) default-frame-alist)
+(push '(top . 30) default-frame-alist)
+
 ;; Disable startup screen
 (setq inhibit-startup-screen t
       inhibit-startup-message t
