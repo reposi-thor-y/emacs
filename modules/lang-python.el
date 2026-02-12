@@ -23,6 +23,7 @@
 (defun my/setup-python-environment ()
   "Set up Python environment with uv-aware detection.
 Tries in order: uv (with pyproject.toml), .venv, system python."
+  (interactive)
   (let* ((uv (or (executable-find "uv") "~/.local/bin/uv"))
          (has-pyproject (locate-dominating-file default-directory "pyproject.toml"))
          (venv-python (when (project-current)
@@ -103,6 +104,20 @@ Tries in order: uv (with pyproject.toml), .venv, system python."
         (uv-cmd (my/uv-command)))
     (when (and script (not (string-empty-p script)))
       (compile (format "%s run %s" uv-cmd script)))))
+
+;; Format buffer with Ruff
+(defun my/ruff-format-buffer ()
+  "Format current buffer using ruff."
+  (interactive)
+  (let ((file (buffer-file-name)))
+    (when file
+      (save-buffer)
+      (call-process "ruff" nil nil nil "format" file)
+      (revert-buffer t t t)
+      (message "Ruff formatted %s" (file-name-nondirectory file)))))
+
+(with-eval-after-load 'python
+  (define-key python-mode-map (kbd "M-3") #'my/ruff-format-buffer))
 
 ;; Additional keybindings for uv commands
 (with-eval-after-load 'python

@@ -107,6 +107,11 @@
       auto-save-default nil
       create-lockfiles nil)
 
+;; Auto-revert buffers when files change on disk (e.g. from external tools)
+(global-auto-revert-mode 1)
+(setq auto-revert-use-notify t)
+(setq auto-revert-verbose nil)
+
 ;; Security
 (setq auth-sources '("~/.authinfo.gpg")
       auth-source-save-behavior t)

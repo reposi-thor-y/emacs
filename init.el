@@ -32,6 +32,7 @@
 (require 'lang-markdown)  ;; Markdown configuration
 (require 'lang-elisp)     ;; Emacs Lisp configuration
 (require 'lang-other)     ;; Other file formats
+(require 'ai)             ;; AI assistant (Claude Code)
 (require 'misc)           ;; Miscellaneous settings
 
 (provide 'init)

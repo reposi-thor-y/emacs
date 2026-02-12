@@ -19,35 +19,11 @@
   ;; Performance: increase read output for better performance
   (setq read-process-output-max (* 1024 1024))  ;; 1MB
 
-  ;; Python: use python-lsp-server (pylsp) with Jedi for completions
-  ;; Install: uv tool install python-lsp-server --with python-lsp-ruff --with 'python-lsp-server[all]'
-  ;; This gives you: Jedi completions + Ruff linting/formatting in one server
+  ;; Python: use basedpyright for type-aware completions
+  ;; Install: uv tool install basedpyright
+  ;; Ruff handles linting/formatting separately (via eglot-format on save)
   (add-to-list 'eglot-server-programs
-               '(python-mode . ("pylsp")))
-
-  ;; Configure pylsp via Eglot workspace configuration
-  (setq-default eglot-workspace-configuration
-                '(:pylsp (:plugins (:jedi_completion (:enabled t
-                                                       :include_params t
-                                                       :include_class_objects t
-                                                       :fuzzy t)
-                                    :jedi_hover (:enabled t)
-                                    :jedi_references (:enabled t)
-                                    :jedi_signature_help (:enabled t)
-                                    :jedi_symbols (:enabled t
-                                                   :all_scopes t)
-                                    :ruff (:enabled t
-                                           :format (:enabled t)
-                                           :lineLength 88)
-                                    ;; Disable other linters to avoid conflicts with Ruff
-                                    :pycodestyle (:enabled :json-false)
-                                    :flake8 (:enabled :json-false)
-                                    :mccabe (:enabled :json-false)
-                                    :pyflakes (:enabled :json-false)
-                                    :pylint (:enabled :json-false)
-                                    :yapf (:enabled :json-false)
-                                    :autopep8 (:enabled :json-false)
-                                    :black (:enabled :json-false)))))
+               '(python-mode . ("uv" "run" "basedpyright-langserver" "--stdio")))
 
   ;; Make bash-language-server work with zshrc-mode too
   (add-to-list 'eglot-server-programs

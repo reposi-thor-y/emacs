@@ -105,6 +105,10 @@
   (async-bytecomp-package-mode 1)
   (dired-async-mode 1))
 
+;; Eldoc: prefer dedicated buffer over echo area popups
+(setq eldoc-echo-area-display-truncation-message nil)
+(setq eldoc-echo-area-prefer-doc-buffer t)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (provide 'editing)
 ;;; editing.el ends here
