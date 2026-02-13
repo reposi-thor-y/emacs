@@ -16,14 +16,8 @@
          ("\\.md\\'" . markdown-mode)
          ("\\.markdown\\'" . markdown-mode))
   :init
-  ;; Pandoc is located at different places:
-  (cond
-   ((eq system-type 'darwin)
-    ;; macOS:
-    (setq markdown-command "/usr/local/bin/pandoc"))
-   ;; Linux-specific configurations
-   ((eq system-type 'gnu/linux)
-    (setq markdown-command "/usr/bin/pandoc"))))
+  (when-let ((pandoc (my/find-executable "pandoc")))
+    (setq markdown-command pandoc)))
 
 (add-hook 'markdown-mode-hook
           (lambda ()

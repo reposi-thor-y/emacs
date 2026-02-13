@@ -9,13 +9,14 @@
 ;; Add modules directory to load path
 (add-to-list 'load-path (expand-file-name "modules" user-emacs-directory))
 
-;; Set initial frame size (in characters)
-(push '(width . 120) default-frame-alist)
-(push '(height . 67) default-frame-alist)
+;; Load platform detection first (defines my/frame-*, my/font-*, my/is-mac, etc.)
+(require 'platform)
 
-;; Or set initial position too
-(push '(left . 800) default-frame-alist)
-(push '(top . 30) default-frame-alist)
+;; Set initial frame size and position
+(push `(width  . ,my/frame-width)  default-frame-alist)
+(push `(height . ,my/frame-height) default-frame-alist)
+(push `(left   . ,my/frame-left)   default-frame-alist)
+(push `(top    . ,my/frame-top)    default-frame-alist)
 
 ;; Load modules in dependency order
 (require 'core)           ;; Core settings and package management

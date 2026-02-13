@@ -75,7 +75,7 @@
            (native-comp-available-p))
   (setq native-comp-async-report-warnings-errors nil)
   (setq native-comp-deferred-compilation t)
-  (setq native-comp-async-jobs-number 12)
+  (setq native-comp-async-jobs-number my/native-comp-jobs)
 
   ;; Set up a dedicated native compilation cache directory
   (when (boundp 'comp-eln-load-path)

@@ -9,19 +9,27 @@
 ;; EXECUTABLE CHECKING
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defun my/pkg-install-hint (brew-pkg &optional linux-hint)
+  "Return a platform-appropriate install hint.
+BREW-PKG is the Homebrew package name (used on macOS).
+LINUX-HINT is the Linux install instruction (defaults to package manager)."
+  (if my/is-mac
+      (format "brew install %s" brew-pkg)
+    (or linux-hint (format "Install '%s' from your package manager" brew-pkg))))
+
 (defvar my/required-executables
-  '(;; Language servers
+  `(;; Language servers
     ("pylsp" "Python LSP" "uv tool install python-lsp-server --with python-lsp-ruff")
-    ("texlab" "LaTeX LSP" "Install from your package manager or cargo")
-    ("marksman" "Markdown LSP" "Download from https://github.com/artempyanykh/marksman")
+    ("texlab" "LaTeX LSP" ,(if my/is-mac "brew install texlab" "Install from your package manager or cargo"))
+    ("marksman" "Markdown LSP" ,(if my/is-mac "brew install marksman" "Download from https://github.com/artempyanykh/marksman"))
     ("bash-language-server" "Shell LSP" "npm install -g bash-language-server")
     ;; Python tools
     ("uv" "Python package manager" "curl -LsSf https://astral.sh/uv/install.sh | sh")
     ("ruff" "Python linter/formatter" "uv tool install ruff")
     ;; Other tools
-    ("hunspell" "Spell checker" "Install from your package manager")
-    ("pandoc" "Document converter" "Install from your package manager")
-    ("git" "Version control" "Install from your package manager"))
+    ("hunspell" "Spell checker" ,(my/pkg-install-hint "hunspell"))
+    ("pandoc" "Document converter" ,(my/pkg-install-hint "pandoc"))
+    ("git" "Version control" ,(my/pkg-install-hint "git")))
   "List of (EXECUTABLE DESCRIPTION INSTALL-HINT) for required tools.")
 
 (defun my/check-executable (exe-info)

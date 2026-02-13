@@ -5,16 +5,7 @@
 
 ;;; Code:
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; OS-SPECIFIC SETTINGS
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-;; Define environment variables
-(defvar xdg-bin (getenv "XDG_BIN_HOME"))
-(defvar xdg-cache (getenv "XDG_CACHE_HOME"))
-(defvar xdg-config (getenv "XDG_CONFIG_HOME"))
-
-;; Resizing Emacs in KDE Plasma isn't nice without this:
+;; Allow pixel-precise frame resizing (needed by some window managers/compositors)
 (setq frame-resize-pixelwise t)
 
 ;; Unified theme and display setup
@@ -29,13 +20,8 @@
       ;; GUI mode - use modus-vivendi-tinted
       (progn
         (load-theme 'modus-vivendi-tinted t)
-        ;; System-specific fonts
-        (when (eq system-type 'gnu/linux)
-          (cond
-           ((string-equal (system-name) "rocky-ws")
-            (set-face-attribute 'default nil :font "SauceCodePro NFM" :height 120))
-           ((string-equal (system-name) "rocky-laptop")
-            (set-face-attribute 'default nil :font "Source Code Pro" :height 120)))))
+        ;; Font setup from platform.el
+        (set-face-attribute 'default nil :font my/font-name :height my/font-height))
     ;; Terminal mode - use tango-dark with custom faces
     (load-theme 'tango-dark t)
     (set-face-background 'hl-line "gray25")
