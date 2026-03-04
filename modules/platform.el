@@ -49,15 +49,15 @@
 
 (defvar my/font-name
   (cond
-   (my/is-mac "Source Code Pro")
+   (my/is-mac "SauceCodePro NFM")
    ((string-equal my/hostname "rocky-ws") "SauceCodePro NFM")
    (t "Source Code Pro"))
   "Font name for the default face.")
 
 (defvar my/font-height
   (cond
-   (my/is-mac 140)
-   (t 120))
+   (my/is-mac 150)
+   (t 140))
   "Font height for the default face (in 1/10pt units).")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
