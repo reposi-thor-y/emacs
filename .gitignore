@@ -37,3 +37,7 @@ ellama-sessions/
 
 # don't push history
 history
+
+# machine-local state
+network-security.data
+recentf
