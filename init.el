@@ -34,6 +34,7 @@
 (require 'lang-elisp)     ;; Emacs Lisp configuration
 (require 'lang-other)     ;; Other file formats
 (require 'ai)             ;; AI assistant (Claude Code)
+(require 'mail)           ;; Email (mu4e + iCloud)
 (require 'misc)           ;; Miscellaneous settings
 
 (provide 'init)

@@ -26,6 +26,11 @@ LINUX-HINT is the Linux install instruction (defaults to package manager)."
     ;; Python tools
     ("uv" "Python package manager" "curl -LsSf https://astral.sh/uv/install.sh | sh")
     ("ruff" "Python linter/formatter" "uv tool install ruff")
+    ;; Mail
+    ("mbsync" "IMAP mail sync" ,(my/pkg-install-hint "isync"))
+    ("mu" "Mail indexer" ,(my/pkg-install-hint "mu"))
+    ("vdirsyncer" "CardDAV contact sync" ,(my/pkg-install-hint "vdirsyncer"))
+    ("khard" "CLI address book" ,(my/pkg-install-hint "khard"))
     ;; Other tools
     ("hunspell" "Spell checker" ,(my/pkg-install-hint "hunspell"))
     ("pandoc" "Document converter" ,(my/pkg-install-hint "pandoc"))
