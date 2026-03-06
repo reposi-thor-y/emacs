@@ -19,8 +19,8 @@
   (mu4e-confirm-quit nil)
   (mu4e-change-filenames-when-moving t)
 
-  ;; Sync
-  (mu4e-get-mail-command "mbsync -a")
+  ;; Sync (also pull contacts from Nextcloud via vdirsyncer)
+  (mu4e-get-mail-command "vdirsyncer sync 2>/dev/null; mbsync -a")
   (mu4e-update-interval 300)
 
   ;; Maildir paths (iCloud folder names)
@@ -73,6 +73,28 @@
   (setq mu4e-view-actions
         '(("capture message" . mu4e-action-capture-message)
           ("view in browser" . mu4e-action-view-in-browser))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; KHARD CONTACTS → MU4E AUTOCOMPLETION
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defun my/mu4e-add-khard-contacts (&rest _)
+  "Inject khard contacts into `mu4e--contacts-set' for autocompletion."
+  (when (and (executable-find "khard")
+             (hash-table-p mu4e--contacts-set))
+    (let ((output (shell-command-to-string "khard email --parsable --search-in-source-files 2>/dev/null")))
+      (dolist (line (split-string output "\n" t))
+        (let ((fields (split-string line "\t")))
+          (when (>= (length fields) 2)
+            (let ((email (nth 0 fields))
+                  (name (nth 1 fields)))
+              (puthash (if (string-empty-p name)
+                           email
+                         (format "%s <%s>" name email))
+                       t mu4e--contacts-set))))))))
+
+(with-eval-after-load 'mu4e
+  (advice-add 'mu4e--update-contacts :after #'my/mu4e-add-khard-contacts))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; SMTP (SENDING)
