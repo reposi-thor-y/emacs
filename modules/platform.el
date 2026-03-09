@@ -25,7 +25,8 @@
 
 (when my/is-mac
   (setq mac-command-modifier 'control
-        mac-option-modifier 'meta))
+        mac-option-modifier 'meta
+        mac-right-option-modifier 'none))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; HOMEBREW EXEC-PATH (macOS)

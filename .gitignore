@@ -3,6 +3,7 @@
 .cache
 .lsp-session-v1
 .recentf
+recentf
 ac-comphist.dat
 auto-save-list/
 company-statistics-cache.el
