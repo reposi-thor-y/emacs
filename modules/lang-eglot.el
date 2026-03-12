@@ -22,8 +22,9 @@
   ;; Python: use basedpyright for type-aware completions
   ;; Install: uv tool install basedpyright
   ;; Ruff handles linting/formatting separately (via eglot-format on save)
+  ;; Call basedpyright directly (not via "uv run") to avoid extra subprocess overhead
   (add-to-list 'eglot-server-programs
-               '(python-mode . ("uv" "run" "basedpyright-langserver" "--stdio")))
+               '(python-mode . ("basedpyright-langserver" "--stdio")))
 
   ;; Make bash-language-server work with zshrc-mode too
   (add-to-list 'eglot-server-programs
@@ -37,6 +38,15 @@
   ;; Disable intrusive UI elements (keep it minimal)
   (setq eglot-autoshutdown t)           ;; Shutdown server when last buffer is killed
   (setq eglot-sync-connect nil)         ;; Don't block on connection
+  (setq eglot-autoreconnect 3)          ;; Max 3 reconnect attempts (nil to disable)
+
+  ;; Block LSP file watching entirely (basedpyright requests watching "**"
+  ;; which creates 22K+ file watchers per project and exhausts macOS file
+  ;; descriptors). Edits in Emacs are still sent via textDocument/didChange.
+  (cl-defmethod eglot-register-capability
+    (_server (_method (eql workspace/didChangeWatchedFiles)) _id &rest _rest)
+    "Ignore file watching requests from LSP servers."
+    nil)
 
   ;; Keybindings
   (define-key eglot-mode-map (kbd "C-c l r") 'eglot-rename)

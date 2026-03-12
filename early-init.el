@@ -23,16 +23,6 @@
 (setq gc-cons-threshold most-positive-fixnum
       gc-cons-percentage 0.6)
 
-;; Prevent premature re-displays during startup
-(setq-default inhibit-redisplay t
-              inhibit-message t)
-
-;; Reset after startup
-(add-hook 'emacs-startup-hook
-          (lambda ()
-            (setq-default inhibit-redisplay nil
-                          inhibit-message nil)))
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; NATIVE COMPILATION SETTINGS
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -65,10 +55,11 @@
 (defvar my/file-name-handler-alist-backup file-name-handler-alist)
 (setq file-name-handler-alist nil)
 
-;; Restore after startup
+;; Restore after startup and raise frame to front
 (add-hook 'emacs-startup-hook
           (lambda ()
-            (setq file-name-handler-alist my/file-name-handler-alist-backup)))
+            (setq file-name-handler-alist my/file-name-handler-alist-backup)
+            (select-frame-set-input-focus (selected-frame))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (provide 'early-init)
