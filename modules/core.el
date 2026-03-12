@@ -40,7 +40,8 @@
   :ensure t
   :demand t  ;; Load immediately
   :config
-  (when (memq window-system '(mac ns x pclone))
+  (when (or (memq window-system '(mac ns x pclone))
+            (daemonp))
     (exec-path-from-shell-initialize)
     ;; Copy important shell environment variables
     (exec-path-from-shell-copy-envs '("PATH" "MANPATH" "LANG" "LC_ALL"))))

@@ -17,7 +17,10 @@
          ("\\.markdown\\'" . markdown-mode))
   :init
   (when-let ((pandoc (my/find-executable "pandoc")))
-    (setq markdown-command pandoc)))
+    (setq markdown-command pandoc))
+  :config
+  ;; Enable language-specific syntax highlighting in fenced code blocks
+  (setq markdown-fontify-code-blocks-natively t))
 
 (add-hook 'markdown-mode-hook
           (lambda ()
@@ -26,6 +29,7 @@
 (use-package markdown-preview-mode
   :defer t
   :after markdown-mode)
+
 
 (defun markdown-export-pdf ()
   "Export the current Markdown file to PDF using Pandoc."

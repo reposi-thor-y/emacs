@@ -23,7 +23,7 @@
 ;; Multiple cursors for text editing
 (use-package multiple-cursors
   :defer t
-  :bind (("C-c m c" . mc/edit-lines)
+  :bind (("C-S-c C-S-c" . mc/edit-lines)
          ("C->" . mc/mark-next-like-this)
          ("C-<" . mc/mark-previous-like-this)))
 
