@@ -152,7 +152,11 @@
 
 ;; YAML mode
 (use-package yaml-mode
-  :defer t)
+  :defer t
+  :hook (yaml-mode . (lambda ()
+                       (setq-local yaml-indent-offset 2)
+                       (setq-local tab-width 2)
+                       (setq-local indent-tabs-mode nil))))
 
 ;; TOML mode
 (use-package toml-mode
