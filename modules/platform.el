@@ -58,7 +58,7 @@
 (defvar my/font-height
   (cond
    (my/is-mac 150)
-   (t 140))
+   (t 130))
   "Font height for the default face (in 1/10pt units).")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -68,7 +68,7 @@
 (defvar my/frame-width  (if my/is-mac 110 120) "Default frame width in columns.")
 (defvar my/frame-height (if my/is-mac 55 60)   "Default frame height in lines.")
 (defvar my/frame-left   (if my/is-mac 100 800) "Default frame left position in pixels.")
-(defvar my/frame-top    30                      "Default frame top position in pixels.")
+(defvar my/frame-top    40                     "Default frame top position in pixels.")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; NATIVE COMPILATION
