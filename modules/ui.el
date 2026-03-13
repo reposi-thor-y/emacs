@@ -118,6 +118,11 @@
   (dimmer-configure-magit)
   (dimmer-mode t))
 
+;; Disable trackpad pinch-to-zoom (triggers text-scale-adjust, can freeze UI)
+(global-unset-key (kbd "<pinch>"))
+(global-unset-key (kbd "<C-wheel-up>"))
+(global-unset-key (kbd "<C-wheel-down>"))
+
 ;; Improved scrolling
 (setq mouse-wheel-scroll-amount '(2 ((shift) . 2) ((control) . nil)))
 (setq mouse-wheel-progressive-speed nil)
