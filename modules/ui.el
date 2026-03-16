@@ -26,7 +26,23 @@
   ;; or for treemacs users
   (doom-themes-treemacs-config)
   ;; Corrects (and improves) org-mode's native fontification.
-  (doom-themes-org-config))
+  (doom-themes-org-config)
+
+)
+
+;; Distinct colors per markdown heading level (doom-one palette).
+;; The per-level faces inherit everything from markdown-header-face,
+;; so we must override the full face spec to break the inheritance.
+(defun my/markdown-heading-colors ()
+  "Apply distinct colors to markdown heading levels."
+  (face-remap-add-relative 'markdown-header-face-1 :inherit nil :weight 'bold :foreground "#51afef")
+  (face-remap-add-relative 'markdown-header-face-2 :inherit nil :weight 'bold :foreground "#c678dd")
+  (face-remap-add-relative 'markdown-header-face-3 :inherit nil :weight 'bold :foreground "#98be65")
+  (face-remap-add-relative 'markdown-header-face-4 :inherit nil :weight 'bold :foreground "#ECBE7B")
+  (face-remap-add-relative 'markdown-header-face-5 :inherit nil :weight 'bold :foreground "#da8548")
+  (face-remap-add-relative 'markdown-header-face-6 :inherit nil :weight 'bold :foreground "#a9a1e1"))
+
+(add-hook 'markdown-mode-hook #'my/markdown-heading-colors)
 
 ;; Unified theme and display setup
 (defun my/setup-ui ()
@@ -60,6 +76,25 @@
                   (my/setup-ui))))
   ;; Regular Emacs - setup once
   (add-hook 'after-init-hook #'my/setup-ui))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; STABLE LINE HEIGHT
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; Rescale fonts that Emacs uses as fallbacks for Unicode glyphs
+;; (emoji, CJK, symbols) so they don't exceed the default font's
+;; line height.  Adjust scale factors if specific characters still
+;; cause jumps — check which font a char uses with C-u C-x =.
+(setq face-font-rescale-alist
+      '(("Apple Color Emoji" . 0.8)
+        ("Symbola" . 0.9)
+        ("Noto Color Emoji" . 0.8)
+        ("Noto Sans Symbols" . 0.9)
+        ("Noto Sans Symbols2" . 0.9)))
+
+;; Small fixed line-spacing gives a uniform baseline and absorbs
+;; minor metric differences from fallback fonts.
+(setq-default line-spacing 2)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; UI & APPEARANCE
@@ -138,10 +173,18 @@
   (dimmer-configure-magit)
   (dimmer-mode t))
 
-;; Disable trackpad pinch-to-zoom (triggers text-scale-adjust, can freeze UI)
+;; Disable all text-scale bindings — trackpad momentum scroll + Ctrl
+;; triggers accidental zoom on macOS
 (global-unset-key (kbd "<pinch>"))
 (global-unset-key (kbd "<C-wheel-up>"))
 (global-unset-key (kbd "<C-wheel-down>"))
+(global-unset-key (kbd "<C-mouse-4>"))
+(global-unset-key (kbd "<C-mouse-5>"))
+(global-set-key (kbd "<C-wheel-up>") #'ignore)
+(global-set-key (kbd "<C-wheel-down>") #'ignore)
+(global-set-key (kbd "<C-mouse-4>") #'ignore)
+(global-set-key (kbd "<C-mouse-5>") #'ignore)
+(global-set-key (kbd "<pinch>") #'ignore)
 
 ;; Improved scrolling
 (setq mouse-wheel-scroll-amount '(2 ((shift) . 2) ((control) . nil)))

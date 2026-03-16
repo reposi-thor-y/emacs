@@ -94,9 +94,14 @@
 (prefer-coding-system 'utf-8-unix)
 (set-default-coding-systems 'utf-8)
 
-;; Line numbers with fixed width
-(setq-default display-line-numbers-width-start t)
+;; Line numbers with fixed width — use a fixed minimum width
+;; and disable width-start to avoid recalculation jumps
+(setq-default display-line-numbers-width 4)
 (global-display-line-numbers-mode t)
+
+;; Reserve fixed fringe width so diagnostics indicators
+;; don't cause the text to jump when they appear or disappear
+(fringe-mode '(8 . 8))
 
 ;; Center buffer mode
 (use-package centered-cursor-mode

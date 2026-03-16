@@ -22,26 +22,33 @@
   ;; Enable language-specific syntax highlighting in fenced code blocks
   (setq markdown-fontify-code-blocks-natively t))
 
-(add-hook 'markdown-mode-hook
-          (lambda ()
-            (display-fill-column-indicator-mode 1)))
-
 (use-package markdown-preview-mode
   :defer t
   :after markdown-mode)
 
 
+;; auto-fill-mode wraps lines at fill-column as you type.
+;; After editing mid-paragraph, use M-q to refill.
+(add-hook 'markdown-mode-hook #'auto-fill-mode)
+
 (defun markdown-export-pdf ()
   "Export the current Markdown file to PDF using Pandoc."
   (interactive)
   (let* ((input-file (buffer-file-name))
-         (output-file (concat (file-name-sans-extension input-file) ".pdf")))
-    (call-process "pandoc" nil nil nil
-                  input-file
-                  "-o" output-file
-                  "--pdf-engine=xelatex"
-                  "-V" "geometry:margin=1in")
-    (message "Exported to %s" output-file)))
+         (output-file (concat (file-name-sans-extension input-file) ".pdf"))
+         (pdf-engine (if my/is-mac "tectonic" "xelatex"))
+         (error-buf (get-buffer-create "*pandoc-errors*"))
+         (exit-code (progn
+                      (with-current-buffer error-buf (erase-buffer))
+                      (call-process "pandoc" nil error-buf nil
+                                    input-file
+                                    "-o" output-file
+                                    (concat "--pdf-engine=" pdf-engine)
+                                    "-V" "geometry:margin=1in"))))
+    (if (= exit-code 0)
+        (message "Exported to %s" output-file)
+      (display-buffer error-buf)
+      (message "PDF export failed (exit %d) — see *pandoc-errors*" exit-code))))
 
 ;; Markdownlint via Flymake (works alongside Eglot/marksman)
 ;; markdownlint writes to stderr, so we shell-wrap with 2>&1 to capture output.
@@ -123,10 +130,8 @@ REPORT-FN is the reporting function provided by Flymake."
               (flymake-start)))
           95)
 
-;; Markdown code formatting
-(use-package prettier-js
-  :defer t
-  :hook (markdown-mode . prettier-js-mode))
+;; Prettier disabled for markdown — it joins consecutive lines within
+;; a paragraph, breaking our hard-wrapped lines and triggering MD013.
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (provide 'lang-markdown)

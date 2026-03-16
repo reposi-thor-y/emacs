@@ -118,11 +118,14 @@
   :after yasnippet)
 
 ;; Flycheck for syntax checking - global configuration
-;; Note: Flycheck is automatically disabled for buffers managed by Eglot
-;; (see lang-eglot.el). Language-specific settings are in their respective modules.
+;; Flycheck is disabled for modes where Eglot provides diagnostics via Flymake,
+;; to avoid a visible jump when Flycheck starts then gets killed.
 (use-package flycheck
   :defer t
-  :hook (after-init . global-flycheck-mode))
+  :hook (after-init . global-flycheck-mode)
+  :config
+  (setq flycheck-global-modes
+        '(not python-mode markdown-mode latex-mode sh-mode zshrc-mode)))
 
 
 ;; Project management

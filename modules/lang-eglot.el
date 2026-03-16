@@ -53,12 +53,8 @@
   (define-key eglot-mode-map (kbd "C-c l a") 'eglot-code-actions)
   (define-key eglot-mode-map (kbd "C-c l f") 'eglot-format))
 
-;; Disable Flycheck when Eglot is active (Eglot provides diagnostics via Flymake)
-(with-eval-after-load 'flycheck
-  (add-hook 'eglot-managed-mode-hook
-            (lambda ()
-              (when (derived-mode-p 'python-mode 'LaTeX-mode 'markdown-mode 'sh-mode 'zshrc-mode)
-                (flycheck-mode -1)))))
+;; Flycheck is excluded from Eglot-managed modes via flycheck-global-modes
+;; in development.el, so no need to disable it in a hook here.
 
 ;; Optional: Auto-format Python on save with Ruff
 (add-hook 'python-mode-hook
