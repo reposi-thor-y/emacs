@@ -31,6 +31,58 @@
 ;; After editing mid-paragraph, use M-q to refill.
 (add-hook 'markdown-mode-hook #'auto-fill-mode)
 
+;; Make fill-paragraph properly handle list items: join the item's
+;; continuation lines first, then refill with correct indentation.
+(defun my/markdown-fill-list-item (&optional justify)
+  "Fill the current list item, handling unindented continuation lines.
+Returns t if we handled a list item, nil otherwise."
+  (save-excursion
+    ;; Find the start of the list item (line with the marker)
+    (goto-char (line-beginning-position))
+    (let ((item-start nil)
+          (prefix nil))
+      ;; Check current line or search backward
+      (if (looking-at markdown-regex-list)
+          (setq item-start (point)
+                prefix (make-string (- (match-end 0) (match-beginning 0)) ?\s))
+        (let ((bound (save-excursion (forward-line -20) (point))))
+          (when (re-search-backward markdown-regex-list bound t)
+            (setq item-start (point)
+                  prefix (make-string (- (match-end 0) (match-beginning 0)) ?\s)))))
+      (when (and item-start prefix)
+        ;; Find the end of this list item: stop at next list marker,
+        ;; blank line, heading, or end of buffer.
+        (goto-char item-start)
+        (forward-line 1)
+        (while (and (not (eobp))
+                    (not (looking-at markdown-regex-list))
+                    (not (looking-at "^[ \t]*$"))
+                    (not (looking-at "^#")))
+          (forward-line 1))
+        (let ((item-end (point))
+              (fill-prefix prefix)
+              (fill-column fill-column))
+          ;; Join all lines in the item into one, then refill
+          (goto-char item-start)
+          (end-of-line)
+          (while (< (point) (1- item-end))
+            (delete-char 1)              ; delete newline
+            (just-one-space)             ; normalize whitespace
+            (end-of-line))
+          ;; Now refill as a single line
+          (goto-char item-start)
+          (fill-paragraph justify))
+        t))))
+
+(defun my/markdown-fill-paragraph-advice (orig-fn &optional justify)
+  "Handle list item filling, fall back to default for non-list text."
+  (or (my/markdown-fill-list-item justify)
+      (funcall orig-fn justify)))
+
+(with-eval-after-load 'markdown-mode
+  (advice-add 'markdown-fill-paragraph :around
+              #'my/markdown-fill-paragraph-advice))
+
 (defun markdown-export-pdf ()
   "Export the current Markdown file to PDF using Pandoc."
   (interactive)
