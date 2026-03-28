@@ -45,10 +45,23 @@ Returns t if we handled a list item, nil otherwise."
       (if (looking-at markdown-regex-list)
           (setq item-start (point)
                 prefix (make-string (- (match-end 0) (match-beginning 0)) ?\s))
-        (let ((bound (save-excursion (forward-line -20) (point))))
+        (let ((orig-line (line-beginning-position))
+              (bound (save-excursion (forward-line -20) (point))))
           (when (re-search-backward markdown-regex-list bound t)
-            (setq item-start (point)
-                  prefix (make-string (- (match-end 0) (match-beginning 0)) ?\s)))))
+            ;; Only use this match if there are no blank lines or
+            ;; headings between the marker and our original line
+            (let ((marker-pos (point))
+                  (interrupted nil))
+              (save-excursion
+                (forward-line 1)
+                (while (and (< (point) orig-line) (not interrupted))
+                  (when (or (looking-at "^[ \t]*$")
+                            (looking-at "^#"))
+                    (setq interrupted t))
+                  (forward-line 1)))
+              (unless interrupted
+                (setq item-start marker-pos
+                      prefix (make-string (- (match-end 0) (match-beginning 0)) ?\s)))))))
       (when (and item-start prefix)
         ;; Find the end of this list item: stop at next list marker,
         ;; blank line, heading, or end of buffer.
@@ -59,19 +72,20 @@ Returns t if we handled a list item, nil otherwise."
                     (not (looking-at "^[ \t]*$"))
                     (not (looking-at "^#")))
           (forward-line 1))
-        (let ((item-end (point))
+        (let ((item-end-marker (copy-marker (point)))
               (fill-prefix prefix)
               (fill-column fill-column))
           ;; Join all lines in the item into one, then refill
           (goto-char item-start)
           (end-of-line)
-          (while (< (point) (1- item-end))
+          (while (< (point) (1- (marker-position item-end-marker)))
             (delete-char 1)              ; delete newline
             (just-one-space)             ; normalize whitespace
             (end-of-line))
-          ;; Now refill as a single line
-          (goto-char item-start)
-          (fill-paragraph justify))
+          ;; Refill the joined line using fill-region-as-paragraph
+          ;; (avoids re-triggering our advice via fill-paragraph)
+          (fill-region-as-paragraph item-start (line-end-position) justify)
+          (set-marker item-end-marker nil))
         t))))
 
 (defun my/markdown-fill-paragraph-advice (orig-fn &optional justify)
