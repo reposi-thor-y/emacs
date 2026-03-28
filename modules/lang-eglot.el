@@ -59,7 +59,11 @@
 ;; Optional: Auto-format Python on save with Ruff
 (add-hook 'python-mode-hook
           (lambda ()
-            (add-hook 'before-save-hook 'eglot-format-buffer nil t)))
+            (add-hook 'before-save-hook
+                      (lambda ()
+                        (when (eglot-managed-p)
+                          (eglot-format-buffer)))
+                      nil t)))
 
 (provide 'lang-eglot)
 ;;; lang-eglot.el ends here

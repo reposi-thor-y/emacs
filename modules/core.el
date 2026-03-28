@@ -59,17 +59,6 @@
   (setq gcmh-idle-delay 5)
   (gcmh-mode 1))
 
-;; Optimize garbage collection during minibuffer usage
-(defun my/gc-minibuffer-setup-hook ()
-  "Increase GC threshold when minibuffer is active."
-  (setq gc-cons-threshold most-positive-fixnum))
-
-(defun my/gc-minibuffer-exit-hook ()
-  "Reset GC threshold when minibuffer is inactive."
-  (setq gc-cons-threshold (* 50 1000 1000)))
-
-(add-hook 'minibuffer-setup-hook #'my/gc-minibuffer-setup-hook)
-(add-hook 'minibuffer-exit-hook #'my/gc-minibuffer-exit-hook)
 
 ;; Enable native compilation if available (Emacs 28+)
 (when (and (fboundp 'native-comp-available-p)

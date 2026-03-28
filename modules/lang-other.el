@@ -27,34 +27,15 @@
          ("C->" . mc/mark-next-like-this)
          ("C-<" . mc/mark-previous-like-this)))
 
-;; ;; Shell script mode
-;; (use-package sh-script
-;;   :defer t
-;;   :delight "δ"
-;;   :hook (after-save . executable-make-buffer-file-executable-if-script-p))
-
-
-;; Enhanced shell script configuration for Emacs
-;; With focus on zsh integration
-
-;; Base shell mode configuration
+;; Shell mode configuration with zsh enhancements
 (use-package sh-script
   :defer t
   :delight "δ"
   :hook (after-save . executable-make-buffer-file-executable-if-script-p)
   :config
-  ;; Set zsh as the default shell for script mode
   (setq sh-shell-file "/bin/zsh")
-
-  ;; Custom indentation for zsh scripts
   (setq sh-basic-offset 2
         sh-indentation 2)
-
-  ;; Set zsh as default for new shell scripts
-  (add-to-list 'auto-mode-alist '("\\.zsh\\'" . sh-mode))
-  (add-to-list 'auto-mode-alist '("zshrc\\'" . sh-mode))
-  (add-to-list 'auto-mode-alist '("\\.zshenv\\'" . sh-mode))
-  (add-to-list 'auto-mode-alist '("\\.zprofile\\'" . sh-mode))
 
   ;; Custom syntax highlighting for common zsh commands and constructs
   (font-lock-add-keywords
@@ -89,53 +70,13 @@
   (add-to-list 'company-backends 'company-shell-env))
 
 
-;; Function to launch zsh and execute given command
+;; Run a zsh command via compile (reuses buffer, proper process handling)
 (defun run-zsh-command (command)
-  "Run a zsh command in a new buffer."
+  "Run a zsh COMMAND in a compilation buffer."
   (interactive "sZsh command: ")
-  (let ((buffer (generate-new-buffer "*zsh-command*")))
-    (switch-to-buffer buffer)
-    (insert (format "Running: %s\n\n" command))
-    (start-process "zsh-command" buffer "zsh" "-c" command)
-    (shell-mode)))
+  (compile (format "zsh -c %s" (shell-quote-argument command))))
 
-;; Key bindings for our zsh integration
 (global-set-key (kbd "C-c z c") 'run-zsh-command)
-(global-set-key (kbd "C-c z f") 'create-zsh-script)
-
-;; Improved directory navigation with zsh
-(defun zsh-find-file ()
-  "Use zsh's advanced globbing to find files."
-  (interactive)
-  (let* ((pattern (read-string "Zsh file pattern: "))
-         (command (format "find . -type f -name '%s' | sort" pattern))
-         (result (shell-command-to-string command))
-         (files (split-string result "\n" t))
-         (selected (completing-read "Select file: " files nil t)))
-    (when selected
-      (find-file selected))))
-
-(global-set-key (kbd "C-c z f") 'zsh-find-file)
-
-
-;; Add zsh-mode custom keybindings
-(defvar zsh-mode-map
-  (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "C-c C-e") 'run-zsh-command)
-    (define-key map (kbd "C-c C-c") 'zsh-process-csv)
-    map)
-  "Keymap for zsh-mode.")
-
-(define-derived-mode zsh-mode sh-mode "ZSH"
-  "Major mode for editing zsh scripts."
-  :group 'sh
-  (sh-set-shell "zsh"))
-
-(provide 'zsh-mode)
-
-;; Register zsh-mode for .zsh files
-(add-to-list 'auto-mode-alist '("\\.zsh\\'" . zsh-mode))
-(add-to-list 'interpreter-mode-alist '("zsh" . zsh-mode))
 
 
 ;; CSV mode
@@ -178,10 +119,13 @@
   (message "Waybar config formatted"))
 
 (defun my/has-comments-p ()
-  "Check if buffer contains // comments."
+  "Check if buffer contains // line comments (not inside strings or URLs)."
   (save-excursion
     (goto-char (point-min))
-    (re-search-forward "//" nil t)))
+    (let ((found nil))
+      (while (and (not found) (re-search-forward "^[ \t]*//" nil t))
+        (setq found t))
+      found)))
 
 (defun my/format-smart ()
   "Use jq for pure JSON, indentation for JSONC with comments."

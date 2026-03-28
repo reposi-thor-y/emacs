@@ -62,7 +62,6 @@
   :ensure t
   :bind (;; Keep standard find-file but enhance it through completion framework
          ("C-x b" . consult-buffer)       ;; Replace switch-to-buffer
-         ("C-c l" . consult-line)         ;; Search in current buffer
          ("C-c f d" . consult-find)       ;; Add find as a separate command
          ("C-c f g" . consult-ripgrep))   ;; Add ripgrep search
   :config
@@ -113,11 +112,6 @@
     ;; Candidate is selected - accept it
     (vertico-exit)))
 
-;; Global completion settings
-(setq completion-styles '(basic partial-completion orderless)
-      completion-category-defaults nil
-      completion-category-overrides '((file (styles . (basic partial-completion))))
-      completion-ignore-case t)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (provide 'completion)

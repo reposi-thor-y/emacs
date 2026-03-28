@@ -112,12 +112,10 @@
   (interactive)
   (when (display-graphic-p)
     (let* ((bg (frame-parameter nil 'background-color))
-           (is-light (> (color-distance bg "white")
-                        (color-distance bg "black"))))
-      (if is-light
-          ;; For dark themes - darker highlight
+           (is-dark (> (color-distance bg "white")
+                       (color-distance bg "black"))))
+      (if is-dark
           (set-face-attribute 'hl-line nil :background "#3a3a3a" :extend t)
-        ;; For light themes - lighter highlight
         (set-face-attribute 'hl-line nil :background "#e0e0e0" :extend t)))))
 
 ;; Call it once at startup
@@ -132,13 +130,12 @@
 
 
 ;; Disable unused UI elements
-(custom-set-variables
- '(blink-cursor-mode nil)
- '(menu-bar-mode nil)
- '(scroll-bar-mode nil)
- '(tool-bar-mode nil)
- '(tooltip-mode nil)
- '(warning-suppress-types '((use-package))))
+(blink-cursor-mode -1)
+(menu-bar-mode -1)
+(scroll-bar-mode -1)
+(tool-bar-mode -1)
+(tooltip-mode -1)
+(setq warning-suppress-types '((use-package)))
 
 ;; Mode line appearance
 (set-face-attribute 'mode-line nil :foreground "gray50" :background "black"
@@ -158,8 +155,7 @@
             '(buffer-file-name "%f" (dired-directory dired-directory "%b"))))
 
 ;; Make commented text stand out better
-(custom-set-faces
- '(font-lock-comment-face ((t (:foreground "gray60")))))
+(set-face-attribute 'font-lock-comment-face nil :foreground "gray60")
 
 ;; Dimmer for inactive windows
 (use-package dimmer
@@ -243,7 +239,7 @@
 (global-display-fill-column-indicator-mode 1)
 
 ;; Configure per-mode settings
-(add-hook 'elisp-mode-hook
+(add-hook 'emacs-lisp-mode-hook
           (lambda ()
             (setq fill-column 80)
             (setq display-fill-column-indicator-column 80)))

@@ -24,7 +24,9 @@
   "Set up Python environment with uv-aware detection.
 Tries in order: uv (with pyproject.toml), .venv, system python."
   (interactive)
-  (let* ((uv (or (executable-find "uv") "~/.local/bin/uv"))
+  (let* ((uv (or (executable-find "uv")
+                 (let ((local-uv (expand-file-name "~/.local/bin/uv")))
+                   (when (file-executable-p local-uv) local-uv))))
          (has-pyproject (locate-dominating-file default-directory "pyproject.toml"))
          (venv-python (when (project-current)
                         (expand-file-name ".venv/bin/python" (project-root (project-current)))))
@@ -34,7 +36,7 @@ Tries in order: uv (with pyproject.toml), .venv, system python."
     ;; Determine Python interpreter
     (cond
      ;; 1. Use uv if in a uv project
-     ((and has-pyproject (file-executable-p (expand-file-name uv)))
+     ((and has-pyproject uv)
       (setq python uv args "run python"))
      ;; 2. Use .venv if it exists
      ((and venv-python (file-exists-p venv-python))
@@ -71,10 +73,11 @@ Tries in order: uv (with pyproject.toml), .venv, system python."
 (defun my/uv-command ()
   "Get the uv command, checking multiple locations."
   (or (executable-find "uv")
+      (let ((local-uv (expand-file-name "~/.local/bin/uv")))
+        (when (file-executable-p local-uv) local-uv))
       (let ((home-uv (expand-file-name "~/bin/uv")))
-        (when (file-executable-p home-uv)
-          home-uv))
-      "uv"))
+        (when (file-executable-p home-uv) home-uv))
+      (user-error "uv not found — install it with: curl -LsSf https://astral.sh/uv/install.sh | sh")))
 
 (defun my/uv-add-dependency ()
   "Add a dependency using uv."

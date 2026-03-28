@@ -21,10 +21,9 @@
 (add-to-list 'auto-mode-alist '("\\.zprofile\\'" . zshrc-mode))
 (add-to-list 'auto-mode-alist '("\\.zsh\\'" . sh-mode))
 
-;; Ensure ShellCheck is available for enhanced diagnostics
+;; Ensure ShellCheck follows sourced files when flycheck is used
 (with-eval-after-load 'flycheck
   (setq flycheck-shellcheck-follow-sources t))
-(add-hook 'sh-mode-hook 'flycheck-mode)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (provide 'lang-shell)
