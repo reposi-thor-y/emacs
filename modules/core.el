@@ -83,8 +83,7 @@
 (prefer-coding-system 'utf-8-unix)
 (set-default-coding-systems 'utf-8)
 
-;; Line numbers with fixed width — use a fixed minimum width
-;; and disable width-start to avoid recalculation jumps
+;; Line numbers with fixed width
 (setq-default display-line-numbers-width 4)
 (global-display-line-numbers-mode t)
 

@@ -63,8 +63,7 @@
 ;; Aggressive indent - auto-indent as you type
 (use-package aggressive-indent
   :ensure t
-  :hook ((emacs-lisp-mode . aggressive-indent-mode)
-         (lisp-interaction-mode . aggressive-indent-mode))
+  :hook ((emacs-lisp-mode . aggressive-indent-mode))
   :config
   ;; Disable in minibuffer
   (add-to-list 'aggressive-indent-excluded-modes 'minibuffer-inactive-mode))
