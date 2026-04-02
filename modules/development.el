@@ -101,6 +101,7 @@
 (add-hook 'prog-mode-hook #'my/setup-smart-file-capf)
 (add-hook 'text-mode-hook #'my/setup-smart-file-capf)
 (add-hook 'sh-mode-hook #'my/setup-smart-file-capf)
+(add-hook 'inferior-python-mode-hook #'my/setup-smart-file-capf)
 
 ;; Key binding to manually trigger completion (Swedish keyboard friendly)
 (global-set-key (kbd "M-.") #'completion-at-point)
