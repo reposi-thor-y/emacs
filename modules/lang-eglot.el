@@ -16,8 +16,7 @@
          (sh-mode . eglot-ensure)
          (zshrc-mode . eglot-ensure))    ;; Custom zsh config mode
   :config
-  ;; Performance: increase read output for better performance
-  (setq read-process-output-max (* 1024 1024))  ;; 1MB
+  ;; Performance: read-process-output-max is set globally in misc.el
 
   ;; Python: use basedpyright for type-aware completions
   ;; Install: uv tool install basedpyright

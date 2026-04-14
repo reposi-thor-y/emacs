@@ -16,6 +16,12 @@
 (global-set-key (kbd "C-x 2") 'split-window-below)
 (global-set-key (kbd "C-x 3") 'split-window-right)
 
+;; Winner mode -- undo/redo window layout changes
+;; C-c <left>  : restore previous window layout (winner-undo)
+;; C-c <right> : step forward again (winner-redo)
+;; Useful when C-x 1, help buffers, or magit blow away your layout.
+(winner-mode 1)
+
 ;; Windmove for easier window navigation
 (use-package windmove
   :ensure t
@@ -83,7 +89,8 @@
                                         global-mark-ring
                                         search-ring
                                         regexp-search-ring
-                                        extended-command-history))
+                                        extended-command-history
+                                        kill-ring))
   :config
   (savehist-mode 1))
 
