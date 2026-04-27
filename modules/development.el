@@ -129,15 +129,9 @@
         '(not python-mode markdown-mode latex-mode sh-mode zshrc-mode)))
 
 
-;; Project management
-(use-package projectile
-  :defer t
-  :init
-  (setq projectile-completion-system 'vertico)
-  (setq projectile-indexing-method 'alien)
-  (setq projectile-sort-order 'recently-active)
-  :config
-  (projectile-mode 1))
+;; Project management is handled by built-in project.el
+;; (see lang-python.el for pyproject.toml root extension).
+;; Key commands: C-x p p (switch), C-x p f (find file), C-x p g (grep).
 
 ;; Version Control with Magit
 (use-package magit

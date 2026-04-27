@@ -15,7 +15,7 @@ This directory contains the modular Emacs configuration.
 | `ui.el` | UI and appearance | Themes, fonts, mode line, spell checking | 241 |
 | `completion.el` | Completion frameworks | Vertico, Company, Consult, Orderless, Marginalia | 124 |
 | `editing.el` | Editing enhancements | Multiple cursors, which-key, helpful | 109 |
-| `development.el` | Development tools | Flycheck, Magit, Projectile, yasnippet | 160 |
+| `development.el` | Development tools | Flycheck, Magit, yasnippet | 160 |
 | `lang-eglot.el` | Eglot LSP configuration | Language server setup for all languages | 83 |
 | `lang-python.el` | Python configuration | uv integration, Python environment detection | 138 |
 | `lang-elisp.el` | **NEW** Emacs Lisp configuration | Smartparens, macrostep, EROS, evaluation tools | 166 |

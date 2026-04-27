@@ -33,32 +33,49 @@
 ;; Distinct colors per markdown heading level (doom-one palette).
 ;; The per-level faces inherit everything from markdown-header-face,
 ;; so we must override the full face spec to break the inheritance.
+;; :height 1.0 pins headings to the default font size — the per-level
+;; faces carry their own :height (1.8, 1.4, ...) which would otherwise
+;; make lines jump in height as point moves across headings.
 (defun my/markdown-heading-colors ()
   "Apply distinct colors to markdown heading levels."
-  (face-remap-add-relative 'markdown-header-face-1 :inherit nil :weight 'bold :foreground "#51afef")
-  (face-remap-add-relative 'markdown-header-face-2 :inherit nil :weight 'bold :foreground "#c678dd")
-  (face-remap-add-relative 'markdown-header-face-3 :inherit nil :weight 'bold :foreground "#98be65")
-  (face-remap-add-relative 'markdown-header-face-4 :inherit nil :weight 'bold :foreground "#ECBE7B")
-  (face-remap-add-relative 'markdown-header-face-5 :inherit nil :weight 'bold :foreground "#da8548")
-  (face-remap-add-relative 'markdown-header-face-6 :inherit nil :weight 'bold :foreground "#a9a1e1"))
+  (face-remap-add-relative 'markdown-header-face-1 :inherit nil :weight 'bold :height 1.0 :foreground "#51afef")
+  (face-remap-add-relative 'markdown-header-face-2 :inherit nil :weight 'bold :height 1.0 :foreground "#c678dd")
+  (face-remap-add-relative 'markdown-header-face-3 :inherit nil :weight 'bold :height 1.0 :foreground "#98be65")
+  (face-remap-add-relative 'markdown-header-face-4 :inherit nil :weight 'bold :height 1.0 :foreground "#ECBE7B")
+  (face-remap-add-relative 'markdown-header-face-5 :inherit nil :weight 'bold :height 1.0 :foreground "#da8548")
+  (face-remap-add-relative 'markdown-header-face-6 :inherit nil :weight 'bold :height 1.0 :foreground "#a9a1e1")
+  ;; Pin remaining markdown faces to the default face/height so that lines
+  ;; with bold/italic/code/links don't recruit a fallback font whose metrics
+  ;; differ by a pixel and shift line height as point moves between lines.
+  (dolist (face '(markdown-bold-face
+                  markdown-italic-face
+                  markdown-inline-code-face
+                  markdown-code-face
+                  markdown-pre-face
+                  markdown-language-keyword-face
+                  markdown-link-face
+                  markdown-url-face
+                  markdown-markup-face
+                  markdown-list-face
+                  markdown-blockquote-face))
+    (when (facep face)
+      (face-remap-add-relative face :family (face-attribute 'default :family)
+                                    :height 1.0))))
 
 (add-hook 'markdown-mode-hook #'my/markdown-heading-colors)
 
-;; Unified theme and display setup
+;; Per-frame display setup. doom-one is already loaded by the
+;; doom-themes :config above, so the GUI branch only configures the
+;; font. The terminal branch swaps to tango-dark and adjusts hl-line
+;; / vertico-current for legibility on a 256-color background.
 (defun my/setup-ui ()
   "Set up theme and fonts based on display type and system."
   (interactive)
-  ;; Clear existing themes
-  (mapc #'disable-theme custom-enabled-themes)
-
-  ;; Theme selection
   (if (display-graphic-p)
-      ;; GUI mode - use modus-vivendi-tinted
-      (progn
-        (load-theme 'doom-one t)
-        ;; Font setup from platform.el
-        (set-face-attribute 'default nil :font my/font-name :height my/font-height))
-    ;; Terminal mode - use tango-dark with custom faces
+      ;; GUI mode — doom-one is already loaded; just set the font.
+      (set-face-attribute 'default nil :font my/font-name :height my/font-height)
+    ;; Terminal mode — swap to tango-dark with custom faces.
+    (mapc #'disable-theme custom-enabled-themes)
     (load-theme 'tango-dark t)
     (set-face-background 'hl-line "gray25")
     (set-face-foreground 'hl-line nil)
@@ -212,18 +229,17 @@
 (use-package delight
   :ensure t)
 
-;; Common mode settings
+;; Common mode settings.
+;; Note: display-fill-column-indicator-mode is enabled globally below
+;; via global-display-fill-column-indicator-mode, and electric-pair-mode
+;; is enabled globally above — no need to re-enable per buffer.
 (defun my/text-mode-setup ()
   "Common setup for text modes."
-  (visual-line-mode 1)
-  (display-fill-column-indicator-mode 1))
+  (visual-line-mode 1))
 
 (defun my/prog-mode-setup ()
   "Common setup for programming modes."
-  (visual-line-mode 1)
-  (display-fill-column-indicator-mode 1)
-  (show-paren-mode 1)
-  (electric-pair-local-mode 1))
+  (show-paren-mode 1))
 
 (add-hook 'text-mode-hook #'my/text-mode-setup)
 (add-hook 'prog-mode-hook #'my/prog-mode-setup)

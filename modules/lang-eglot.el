@@ -39,6 +39,14 @@
   (setq eglot-sync-connect nil)         ;; Don't block on connection
   (setq eglot-autoreconnect 3)          ;; Max 3 reconnect attempts (nil to disable)
 
+  ;; Eglot's code-action indicator inserts a before-string overlay (lightbulb
+  ;; glyph) on the line at point. Its glyph has slightly different metrics
+  ;; than the default font, so line height shifts as point moves between
+  ;; lines with/without available actions. Restrict indications to the mode
+  ;; line so the buffer's line metrics stay stable. (Emacs 30+)
+  (when (boundp 'eglot-code-action-indications)
+    (setq eglot-code-action-indications '(mode-line)))
+
   ;; Block LSP file watching entirely (basedpyright requests watching "**"
   ;; which creates 22K+ file watchers per project and exhausts macOS file
   ;; descriptors). Edits in Emacs are still sent via textDocument/didChange.

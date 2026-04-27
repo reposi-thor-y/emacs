@@ -42,5 +42,21 @@
 (fset 'yes-or-no-p 'y-or-n-p)                         ; Replace yes/no prompts with y/n
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; LONG-RUNNING DAEMON HYGIENE
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; Reap stale buffers nightly so an all-day daemon doesn't accumulate
+;; hundreds of file buffers over a week.
+(require 'midnight)
+(setq clean-buffer-list-delay-general 2)  ; days untouched before kill
+(midnight-mode 1)
+
+;; Chatty LSP servers (basedpyright, marksman) can balloon Eglot's
+;; per-server events buffer over weeks. Disable it.
+(with-eval-after-load 'eglot
+  (when (boundp 'eglot-events-buffer-size)
+    (setq eglot-events-buffer-size 0)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (provide 'misc)
 ;;; misc.el ends here

@@ -64,7 +64,11 @@
 (when (and (fboundp 'native-comp-available-p)
            (native-comp-available-p))
   (setq native-comp-async-report-warnings-errors nil)
-  (setq native-comp-deferred-compilation t)
+  ;; native-comp-deferred-compilation was renamed in Emacs 29.1.
+  ;; Use the new name; fall back to the old one on older Emacsen.
+  (if (boundp 'native-comp-jit-compilation)
+      (setq native-comp-jit-compilation t)
+    (setq native-comp-deferred-compilation t))
   (setq native-comp-async-jobs-number my/native-comp-jobs)
 
   ;; Set up a dedicated native compilation cache directory
@@ -110,8 +114,10 @@
 (setq auth-sources '("~/.authinfo.gpg")
       auth-source-save-behavior t)
 
-;; Warning levels
-(setq warning-minimum-level :emergency)
+;; Warning levels — :error shows real problems but suppresses routine
+;; package warnings. Use :warning (the default) if you want to see
+;; deprecation notices and package author advisories too.
+(setq warning-minimum-level :error)
 
 ;; Global key bindings
 (global-set-key (kbd "C-c a") 'mark-whole-buffer)
