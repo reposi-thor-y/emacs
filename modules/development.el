@@ -118,15 +118,19 @@
   :defer t
   :after yasnippet)
 
-;; Flycheck for syntax checking - global configuration
-;; Flycheck is disabled for modes where Eglot provides diagnostics via Flymake,
-;; to avoid a visible jump when Flycheck starts then gets killed.
+;; Flycheck for syntax checking - global configuration.
+;; Disabled in:
+;;   - python/markdown/latex/sh/zshrc — Eglot provides diagnostics via Flymake there.
+;;   - lisp-interaction-mode/emacs-lisp-mode — flymake is the elisp checker, AND
+;;     enabling flycheck on the empty *scratch* buffer at startup leaves
+;;     window-vscroll non-zero on Emacs 30 NS, hiding line 1 until a redisplay.
 (use-package flycheck
   :defer t
   :hook (after-init . global-flycheck-mode)
   :config
   (setq flycheck-global-modes
-        '(not python-mode markdown-mode latex-mode sh-mode zshrc-mode)))
+        '(not python-mode markdown-mode latex-mode sh-mode zshrc-mode
+              lisp-interaction-mode emacs-lisp-mode)))
 
 
 ;; Project management is handled by built-in project.el
