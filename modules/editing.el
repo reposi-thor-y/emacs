@@ -116,6 +116,23 @@
 (setq eldoc-echo-area-display-truncation-message nil)
 (setq eldoc-echo-area-prefer-doc-buffer t)
 
+;; Distraction-free editing à la VS Code's Zen Mode.
+;; Hides mode line, fringes, line numbers, fill-column indicator;
+;; centers the buffer in a comfortable column width.
+(use-package writeroom-mode
+  :defer t
+  :bind (("C-c z" . writeroom-mode)
+         ;; ijkl-style width control, scoped to writeroom so it doesn't
+         ;; shadow the global M-{ijkl} windmove bindings.
+         :map writeroom-mode-map
+         ("C-M-j" . writeroom-decrease-width)   ; narrow (left)
+         ("C-M-l" . writeroom-increase-width)   ; widen (right)
+         ("C-M-i" . writeroom-adjust-width))    ; reset to writeroom-width
+  :custom
+  (writeroom-width 100)                       ; columns of visible text
+  (writeroom-fullscreen-effect 'maximized)    ; 'fullscreen for true FS
+  (writeroom-mode-line nil))                  ; hide mode line in zen
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (provide 'editing)
 ;;; editing.el ends here

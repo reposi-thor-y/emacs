@@ -76,7 +76,8 @@
   (interactive "sZsh command: ")
   (compile (format "zsh -c %s" (shell-quote-argument command))))
 
-(global-set-key (kbd "C-c z c") 'run-zsh-command)
+;; No keybinding — invoke via M-x run-zsh-command if needed.
+;; (Freed up C-c z for writeroom-mode.)
 
 
 ;; CSV mode
