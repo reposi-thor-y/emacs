@@ -24,7 +24,21 @@
 
 (use-package markdown-preview-mode
   :defer t
-  :after markdown-mode)
+  :after markdown-mode
+  :config
+  ;; github-markdown-css styles a `.markdown-body` container, which the
+  ;; preview template already provides. The inline <style> tightens up
+  ;; page margins so the result matches GitHub's rendering width.
+  (setq markdown-preview-stylesheets
+        (list "https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.5.1/github-markdown.min.css"
+              "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css"
+              "<style>.markdown-body{box-sizing:border-box;max-width:830px;margin:0 auto;padding:45px;}@media(max-width:767px){.markdown-body{padding:15px;}}</style>")
+        markdown-preview-javascript
+        (list "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js")
+        markdown-preview-script-oninit
+        "document.querySelectorAll('pre code').forEach(function(b){hljs.highlightElement(b);});"
+        markdown-preview-script-onupdate
+        "document.querySelectorAll('pre code').forEach(function(b){b.removeAttribute('data-highlighted');hljs.highlightElement(b);});"))
 
 
 ;; auto-fill-mode wraps lines at fill-column as you type.
